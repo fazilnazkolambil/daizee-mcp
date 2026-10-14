@@ -1,0 +1,10 @@
+{
+  "id": "sam",
+  "name": "Sam",
+  "note": "Fictional blank demo user for the live 'teach it by voice' beat. All data is invented.",
+  "timezone": "Asia/Kolkata",
+  "targets": { "calories": 2100, "protein": 120, "carbs": 240, "fat": 65 },
+  "memories": [],
+  "meals": [],
+  "weights": []
+}

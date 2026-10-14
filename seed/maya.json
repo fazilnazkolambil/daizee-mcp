@@ -1,0 +1,37 @@
+{
+  "id": "maya",
+  "name": "Maya",
+  "note": "Fictional demo user. All data is invented.",
+  "timezone": "Asia/Kolkata",
+  "targets": { "calories": 1800, "protein": 110, "carbs": 200, "fat": 55 },
+  "memories": [
+    { "text": "allergic to peanuts", "category": "allergy", "ageDays": 40, "ttlDays": 365 },
+    { "text": "left knee is sore", "category": "symptom", "ageDays": 3, "ttlDays": 5 },
+    { "text": "walks after dinner", "category": "habit", "ageDays": 15, "ttlDays": 60 },
+    { "text": "likes paneer", "category": "food_preference", "ageDays": 10, "ttlDays": 90 },
+    { "text": "keep replies short", "category": "coach_preference", "ageDays": 30, "ttlDays": 180 }
+  ],
+  "meals": [
+    {
+      "dayOffset": 0,
+      "mealType": "breakfast",
+      "items": [
+        { "name": "idli", "quantity": 1, "calories": 120, "protein": 4, "carbs": 24, "fat": 0.5 },
+        { "name": "sambar", "quantity": 1, "calories": 130, "protein": 6, "carbs": 18, "fat": 4 }
+      ]
+    },
+    {
+      "dayOffset": -1,
+      "mealType": "dinner",
+      "items": [
+        { "name": "dal", "quantity": 1, "calories": 180, "protein": 10, "carbs": 26, "fat": 4 },
+        { "name": "chapati", "quantity": 2, "calories": 200, "protein": 6, "carbs": 36, "fat": 4 }
+      ]
+    }
+  ],
+  "weights": [
+    { "daysAgo": 14, "kg": 62.4 },
+    { "daysAgo": 7, "kg": 62.0 },
+    { "daysAgo": 1, "kg": 61.8 }
+  ]
+}
