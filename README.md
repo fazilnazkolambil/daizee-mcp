@@ -53,6 +53,10 @@ A generic "voice assistant" screen (no Amazon or Echo logos) that is a **real MC
 
 **Two assistant modes.** *Replay* (default, no keys): scripted "which tool should I call" decisions, real calls, and the real service's replies. *Live*: Gemini decides which tool to call. To enable it, copy `.env.example` to `.env` and set `GEMINI_API_KEY` (the file is git-ignored). The key stays on the server, and the browser never sees it. The live brain lives in `src/brain/` and is **separate from the MCP server**, which still contains no language model.
 
+The default model is `gemini-3.1-flash-lite` (older ids such as `gemini-2.5-flash` are retired for new keys). Free Gemini keys allow about 15 requests a minute, so the brain waits out short limits and retries once.
+
+**Measured tool choice.** With the server running and a key set, `npm run eval:live` sends 12 spoken phrases through the real loop (Gemini picks tools, the real MCP server runs them) and writes [`docs/EVAL.md`](docs/EVAL.md). Cases include a two-step forget, an allergy flag after a fresh conversation, a weight that must not be spoken aloud, an off-topic joke, and a prompt-injection attempt. The author wrote the phrases, so treat the result as a smoke test, not a benchmark.
+
 ## What it does: six actions
 
 | Action | What the assistant uses it for |
