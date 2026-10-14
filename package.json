@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p simulator/tsconfig.json --noEmit && tsc -p functions/tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p simulator/tsconfig.json --noEmit",
     "start": "tsx src/server/main.ts",
     "demo": "npm run build:sim && tsx src/server/main.ts",
     "test": "vitest run",
@@ -19,7 +19,9 @@
     "eval:live": "tsx evals/orchestrator.ts",
     "build:functions": "node functions/build.mjs",
     "deploy": "firebase deploy --only functions,hosting --project daizee-mcp-demo --account fazilnazkolambil@gmail.com",
-    "trace:update": "WRITE_WIRE_TRACE=1 vitest run tests/contract.test.ts"
+    "trace:update": "WRITE_WIRE_TRACE=1 vitest run tests/contract.test.ts",
+    "typecheck:functions": "tsc -p functions/tsconfig.json --noEmit",
+    "check": "npm run typecheck && npm run typecheck:functions && npm test"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.1",
