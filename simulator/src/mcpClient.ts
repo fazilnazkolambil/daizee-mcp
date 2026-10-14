@@ -19,6 +19,8 @@ export interface TraceEntry {
   serverMs: number | null;
   request: unknown;
   response: unknown;
+  /** Why the call was made, when it was not the assistant (for example "panel" refreshes). */
+  tag?: string;
 }
 
 export interface ToolInfo {
@@ -38,6 +40,8 @@ let nextId = 1;
 export class McpSession {
   private client: Client | null = null;
   tools: ToolInfo[] = [];
+  /** Set while the page itself (not the assistant) is calling, so the trace can say so. */
+  tag: string | undefined;
 
   constructor(
     private readonly userId: string,
@@ -75,6 +79,7 @@ export class McpSession {
       serverMs: timing ? Number(timing[1]) : null,
       request,
       response,
+      tag: this.tag,
     });
     return res;
   };

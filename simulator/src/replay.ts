@@ -54,7 +54,7 @@ export const SCENES: Scene[] = [
   {
     id: "yes",
     say: "Yes, forget it.",
-    match: /^\s*(yes|yeah|yep|sure|confirm|go ahead)/i,
+    match: /^\s*(yes|yeah|yep|sure|confirm|go ahead)\b/i,
     calls: [{ name: "resolve_memory", args: { query: "knee", confirm: true } }],
   },
   {
