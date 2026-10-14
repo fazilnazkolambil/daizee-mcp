@@ -2,7 +2,9 @@
 
 **A health memory that lives in the service, not in the assistant.**
 
-Tell any voice assistant once that you're allergic to peanuts, and every meal you log afterwards, even in a brand-new conversation, is checked against it. Tell it your knee is sore and it remembers for about a week, checks in before the note expires, then lets it go.
+Tell any voice assistant once that you're allergic to peanuts, and meals you log afterwards, even in a brand-new conversation, are checked against it. Tell it your knee is sore and it remembers for about a week, checks in before the note expires, then lets it go.
+
+> **How far the meal check goes:** it matches words against a built-in list of common allergens and diets (peanuts, tree nuts, dairy, eggs, gluten, shellfish, fish, soy, sesame, vegetarian, vegan, pork, beef). It can miss things, so an empty result is not a clearance. When you save an allergy or diet the list doesn't cover, the service says so out loud instead of staying quiet. It is a reminder, never medical advice.
 
 `daizee-mcp` is an [MCP](https://modelcontextprotocol.io) server (Model Context Protocol, the standard way an AI assistant calls outside tools). It is built for the Amazon Developer Hackathon, Alexa+ track, and it exposes the memory and meal-logging ideas from DayZer0, a live Android AI health-coach app.
 
@@ -18,7 +20,7 @@ npm test        # automated checks, including real MCP calls over HTTP
 npm run demo    # builds the demo page and serves everything on http://localhost:8787
 ```
 
-Open <http://localhost:8787>. With no keys the page runs in **replay mode**: the assistant's decisions are scripted, but every call to the service is real MCP and the trace panel shows the actual JSON. Click the suggested phrases from top to bottom, or press **New conversation** and **Advance time** to see memory persist and expire.
+Open <http://localhost:8787>. With no keys the page runs in **replay mode**: the assistant's decisions are scripted, but every call to the service is real MCP and the trace panel shows the actual JSON. Try the suggested phrases ("More ideas" shows the rest), press **New conversation** to see memory survive a fresh assistant, and **Advance time** to watch notes age. The "Yes, forget it" phrase only works right after "My knee is better now": the service enforces that it must ask first.
 
 `npm start` runs only the MCP server (no page).
 
@@ -51,7 +53,8 @@ A generic "voice assistant" screen (no Amazon or Echo logos) that is a **real MC
 - cards drawn from the structured data (calorie ring, memory chips with lifespan bars, safety banners)
 - **New conversation**: wipes the assistant's own history and opens a brand-new MCP connection. The service still remembers.
 - **Advance time**: moves a demo clock forward so you can watch a note age, raise a check-in, and expire
-- voice in and out through the browser's Web Speech API (typed input always works). In Chrome, speech recognition sends audio to Google's servers.
+- **voice in:** the page records the microphone, converts it to a 16 kHz mono WAV in the browser, and POSTs it to `/brain/transcribe`, where Gemini transcribes it (this replaces the browser's own Web Speech recognition, which needs Google's servers and fails on some networks). Near-silent recordings are caught by a silence gate before any model call, because the model invents text for silent audio; steady background noise can still make it invent words, so the page always shows what it heard before acting. The transcription prompt includes the service's own vocabulary (dish names, allergy terms) to help with words like "pad thai". Typed input always works.
+- **voice out:** the browser's own speech synthesis (the "Speak replies" switch in Settings).
 
 **Two assistant modes.** *Replay* (default, no keys): scripted "which tool should I call" decisions, real calls, and the real service's replies. *Live*: Gemini decides which tool to call. To enable it, copy `.env.example` to `.env` and set `GEMINI_API_KEY` (the file is git-ignored). The key stays on the server, and the browser never sees it. The live brain lives in `src/brain/` and is **separate from the MCP server**, which still contains no language model.
 
@@ -73,9 +76,9 @@ The default model is `gemini-3.1-flash-lite` (older ids such as `gemini-2.5-flas
 Design choices, each tested:
 
 - **No language model inside the server and no "chat with me" action.** The assistant does the talking and understanding. Amazon's Alexa+ policy rejects add-ons that just relay chat to another AI, and every call stays fast and predictable.
-- **Memories expire on purpose.** An allergy lasts about a year, a sore knee about 5 days, unless the user says otherwise. Repeating a fact refreshes it instead of duplicating it. Allergies are always shown first.
+- **Memories expire on purpose.** An allergy lasts about a year, a sore knee about 5 days, unless the user says otherwise. Repeating a fact refreshes it instead of duplicating it. Allergies are always shown first, and an allergy is checked in on during the last 30 days of its life so the safety net never drops silently.
 - **A conscience in the tools, not the prompt.** `log_meal` returns `safetyFlags` that name the memory that triggered them. The check matches words, so it can miss things: it is a reminder, never medical advice.
-- **Safe writes.** Logging the same meal twice never double counts. `resolve_memory` always asks first, and is extra careful with allergies.
+- **Safe writes.** Logging the same meal twice never double counts. `resolve_memory` always asks first, and the service itself enforces it: a "yes" with no earlier question changes nothing, and an old question expires after 10 minutes. It is extra careful with allergies.
 - **Voice-shaped replies.** Every reply has a short plain-text `spoken` sentence (at most 75 words, no markdown) plus structured data for a screen.
 
 ## Where the required technology runs at runtime
@@ -85,7 +88,7 @@ Design choices, each tested:
 | MCP server built with the official SDK (`McpServer`, `registerTool`) | [`src/server/mcpServer.ts`](src/server/mcpServer.ts), [`src/server/tools.ts`](src/server/tools.ts) |
 | Streamable HTTP transport, stateless, one server per request | [`src/server/http.ts`](src/server/http.ts) |
 | A real MCP client (`Client` + `StreamableHTTPClientTransport`) driving it end to end | [`tests/contract.test.ts`](tests/contract.test.ts) |
-| A real trace of those calls, written by the test run | [`docs/WIRE_TRACE_SAMPLE.jsonl`](docs/WIRE_TRACE_SAMPLE.jsonl) |
+| A real trace of those calls, recorded by the contract test (regenerate with `npm run trace:update`) | [`docs/WIRE_TRACE_SAMPLE.jsonl`](docs/WIRE_TRACE_SAMPLE.jsonl) |
 
 The server negotiates MCP protocol versions `2025-11-25` and `2025-03-26` (Amazon's own docs show both), and declares only what it honors (the tool list is fixed). The newest published MCP revision is `2026-07-28`; this server targets `2025-11-25` through SDK 1.x, which satisfies the hackathon's "2025-11-25 or later".
 

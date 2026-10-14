@@ -18,7 +18,8 @@
     "dev:sim": "vite --config simulator/vite.config.ts",
     "eval:live": "tsx evals/orchestrator.ts",
     "build:functions": "node functions/build.mjs",
-    "deploy": "firebase deploy --only functions,hosting --project daizee-mcp-demo --account fazilnazkolambil@gmail.com"
+    "deploy": "firebase deploy --only functions,hosting --project daizee-mcp-demo --account fazilnazkolambil@gmail.com",
+    "trace:update": "WRITE_WIRE_TRACE=1 vitest run tests/contract.test.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.1",

@@ -42,7 +42,8 @@ export const api = onRequest(
     secrets: [geminiKey],
     maxInstances: 1,
     minInstances: 0,
-    memory: "256MiB",
+    memory: "512MiB",
+    concurrency: 10,
     timeoutSeconds: 60,
     cors: false, // our own handler validates the Origin header (an MCP requirement)
   },

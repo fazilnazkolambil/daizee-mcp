@@ -11,7 +11,7 @@ import { MAX_SPOKEN_WORDS } from "../src/server/spoken.js";
 
 /**
  * Contract tests: the REAL MCP SDK client against the REAL HTTP server.
- * This is also the evidence that the required technology runs at runtime:
+ * Also the evidence that the required technology runs at runtime:
  * initialize -> tools/list -> tools/call, over Streamable HTTP.
  */
 
@@ -33,7 +33,9 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await new Promise<void>((ok) => http.close(() => ok()));
-  // Evidence for reviewers: a real trace written by CI, not hand-typed.
+  // The committed sample is regenerated on request (npm run trace:update), so a
+  // normal test run never dirties the working tree with new timings.
+  if (process.env.WRITE_WIRE_TRACE !== "1") return;
   const dir = resolve(dirname(fileURLToPath(import.meta.url)), "../docs");
   mkdirSync(dir, { recursive: true });
   writeFileSync(
