@@ -108,10 +108,15 @@ describe("pickExpiring (check-ins)", () => {
     const c = mem({ id: "c", text: "no sugar", category: "constraint", expiresAtMs: NOW + 2.5 * DAY_MS });
     expect(pickExpiring([a, b, c], NOW).map((m) => m.id)).toEqual(["b", "a"]);
   });
-  it("never checks in on allergies or on far-off memories", () => {
-    const allergy = mem({ id: "a", text: "peanuts", category: "allergy", expiresAtMs: NOW + 1 * DAY_MS });
+  it("checks in on an allergy only in the last 30 days of its life, so the safety net never drops silently", () => {
+    const ending = mem({ id: "a", text: "peanuts", category: "allergy", expiresAtMs: NOW + 20 * DAY_MS });
+    const distant = mem({ id: "b", text: "shellfish", category: "allergy", expiresAtMs: NOW + 200 * DAY_MS });
+    expect(pickExpiring([ending, distant], NOW).map((m) => m.id)).toEqual(["a"]);
+  });
+  it("does not check in on far-off memories or on preferences", () => {
     const far = mem({ id: "f", text: "knee", category: "symptom", expiresAtMs: NOW + 10 * DAY_MS });
-    expect(pickExpiring([allergy, far], NOW)).toEqual([]);
+    const pref = mem({ id: "p", text: "likes paneer", category: "food_preference", expiresAtMs: NOW + 1 * DAY_MS });
+    expect(pickExpiring([far, pref], NOW)).toEqual([]);
   });
 });
 

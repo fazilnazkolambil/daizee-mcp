@@ -15,7 +15,7 @@ import { dayKeyFor } from "../store/dayKey.js";
 import { newId } from "../store/inMemoryStore.js";
 import type { Meal, MealItem, MealType, Store, Targets } from "../store/types.js";
 import type { AllergenRule, Dish } from "./data.js";
-import { checkMeal, matchDish, tokens } from "./safety.js";
+import { checkMeal, matchDish, mealCheckCoverage, tokens } from "./safety.js";
 import { lifespan, plural, round, spoken } from "./spoken.js";
 
 /**
@@ -39,6 +39,8 @@ export interface MealItemInput {
 const ESTIMATE = { calories: 250, protein: 10, carbs: 30, fat: 10 };
 const BIG_WEIGHT_JUMP_KG = 5;
 const MEAL_SOURCE = "alexa";
+/** A "forget" must be asked about before it can be confirmed, and the yes expires. */
+const CONFIRM_WINDOW_MS = 10 * 60 * 1000;
 
 export class UserNotFoundError extends Error {
   constructor(userId: string) {
@@ -48,6 +50,9 @@ export class UserNotFoundError extends Error {
 }
 
 export class DaizeeService {
+  /** Forget requests the user has been asked about (key: user|memory) -> when the yes stops counting. */
+  private readonly pendingForget = new Map<string, number>();
+
   constructor(
     private readonly store: Store,
     private readonly clock: Clock,
@@ -225,6 +230,7 @@ export class DaizeeService {
       return {
         outcome: "needs_confirmation" as const,
         memory: null,
+        mealCheck: "not_applicable" as const,
         spoken: spoken(`Just to check, should I remember that: ${text}?`),
       };
     }
@@ -232,6 +238,7 @@ export class DaizeeService {
       return {
         outcome: "not_saved" as const,
         memory: null,
+        mealCheck: "not_applicable" as const,
         spoken: spoken("I couldn't save that. Could you say it a different way?"),
       };
     }
@@ -241,11 +248,15 @@ export class DaizeeService {
     const id = plan.result.added[0] ?? plan.result.refreshed[0];
     const saved = (await this.store.listMemories(userId)).find((m) => m.id === id);
     const view = saved ? toView(saved, now) : null;
+    // Be upfront when a safety note cannot be matched against meals automatically.
+    const mealCheck = mealCheckCoverage({ text, category: input.category }, this.rules);
     return {
       outcome: (refreshed ? "refreshed" : "saved") as "refreshed" | "saved",
       memory: view,
+      mealCheck,
       spoken: spoken(
         `${refreshed ? "I already knew that, so I've kept it fresh" : "Got it, I'll remember that"}${view ? ` ${lifespan(view.expiresInDays)}` : ""}.`,
+        mealCheck === "not_covered" && "I can't check meals against that one automatically, so please keep an eye on it yourself.",
       ),
     };
   }
@@ -300,7 +311,11 @@ export class DaizeeService {
 
     const target = candidates[0] as Memory;
     const view = toView(target, now);
-    if (!input.confirm) {
+    const key = `${userId}|${target.id}`;
+    const askedUntil = this.pendingForget.get(key) ?? 0;
+    if (!input.confirm || askedUntil < now) {
+      // The user must have been asked first, so a "yes" the assistant invents alone changes nothing.
+      this.pendingForget.set(key, now + CONFIRM_WINDOW_MS);
       return {
         outcome: "needs_confirmation" as const,
         candidates: [view],
@@ -312,6 +327,7 @@ export class DaizeeService {
       };
     }
 
+    this.pendingForget.delete(key);
     const plan = planOps({
       known: active,
       ops: [{ op: "resolve", id: target.id, confidence: 1 }],

@@ -209,6 +209,80 @@ describe("weight", () => {
   });
 });
 
+describe("safety coverage and honest wording", () => {
+  it("catches 'allergic to nuts' against cashew chicken (tree nuts and peanuts)", async () => {
+    const { svc } = setup();
+    await svc.remember("sam", { category: "allergy", text: "allergic to nuts" });
+    const out = await svc.logMeal("sam", { mealType: "dinner", items: [{ name: "cashew chicken" }] });
+    expect(out.safetyFlags).toHaveLength(1);
+    expect(out.safetyFlags[0]?.reason).toMatch(/tree nuts/);
+  });
+
+  it("catches 'allergic to seafood' against prawn curry, and 'no pork' against pork sausage", async () => {
+    const { svc } = setup();
+    await svc.remember("sam", { category: "allergy", text: "allergic to seafood" });
+    await svc.remember("sam", { category: "constraint", text: "I don't eat pork" });
+    const a = await svc.logMeal("sam", { mealType: "lunch", items: [{ name: "prawn curry" }] });
+    const b = await svc.logMeal("sam", { mealType: "snack", items: [{ name: "pork sausage" }] });
+    expect(a.safetyFlags).toHaveLength(1);
+    expect(b.safetyFlags).toHaveLength(1);
+  });
+
+  it("words a diet conflict as 'may not fit', not 'may contain a vegan diet'", async () => {
+    const { svc } = setup();
+    await svc.remember("sam", { category: "constraint", text: "vegan" });
+    const out = await svc.logMeal("sam", { mealType: "dinner", items: [{ name: "paneer tikka" }] });
+    expect(out.safetyFlags[0]?.reason).toBe("paneer tikka may not fit a vegan diet");
+    expect(out.spoken).not.toMatch(/may contain a vegan/);
+  });
+
+  it("says so when an allergy cannot be checked automatically", async () => {
+    const { svc } = setup();
+    const out = await svc.remember("sam", { category: "allergy", text: "allergic to kiwi" });
+    expect(out.mealCheck).toBe("not_covered");
+    expect(out.spoken).toMatch(/can't check meals against that one automatically/);
+    expectVoiceSafe(out.spoken);
+  });
+
+  it("reports covered for known allergens and not_applicable for other notes", async () => {
+    const { svc } = setup();
+    expect((await svc.remember("sam", { category: "allergy", text: "allergic to peanuts" })).mealCheck).toBe("covered");
+    expect((await svc.remember("sam", { category: "habit", text: "walks after dinner" })).mealCheck).toBe("not_applicable");
+  });
+
+  it("asks about an allergy in the last 30 days of its life", async () => {
+    const { svc } = setup();
+    await svc.remember("sam", { category: "allergy", text: "allergic to peanuts", durationDays: 20 });
+    const out = await svc.dayProgress("sam");
+    expect(out.checkIns).toHaveLength(1);
+    expect(out.checkIns[0]?.text).toBe("allergic to peanuts");
+  });
+});
+
+describe("forgetting is enforced in two steps by the service itself", () => {
+  it("ignores a confirm that was never asked about", async () => {
+    const { svc } = setup();
+    const out = await svc.resolve("maya", { query: "knee", confirm: true });
+    expect(out.outcome).toBe("needs_confirmation");
+    expect((await svc.recall("maya")).memories.map((m) => m.text)).toContain("left knee is sore");
+  });
+
+  it("resolves after the ask, and the ask is used up", async () => {
+    const { svc } = setup();
+    await svc.resolve("maya", { query: "knee" });
+    expect((await svc.resolve("maya", { query: "knee", confirm: true })).outcome).toBe("resolved");
+    // a second confirm must not resolve anything else
+    expect((await svc.resolve("maya", { query: "paneer", confirm: true })).outcome).toBe("needs_confirmation");
+  });
+
+  it("lets a stale yes expire", async () => {
+    const { svc, clock } = setup();
+    await svc.resolve("maya", { query: "paneer" });
+    clock.advanceDays(1);
+    expect((await svc.resolve("maya", { query: "paneer", confirm: true })).outcome).toBe("needs_confirmation");
+  });
+});
+
 describe("demo reset", () => {
   it("puts everything back", async () => {
     const { svc, store, clock } = setup();

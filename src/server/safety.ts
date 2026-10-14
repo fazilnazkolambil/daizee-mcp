@@ -87,11 +87,25 @@ export function checkMeal(params: {
           memoryText: memory.text,
           category: memory.category,
           item: item.name,
-          reason: `${item.name} may contain ${rule.label}`,
+          reason: rule.kind === "diet" ? `${item.name} may not fit ${rule.label}` : `${item.name} may contain ${rule.label}`,
           severity: "warning",
         });
       }
     }
   }
   return flags;
+}
+
+/**
+ * Can meals be checked against this note automatically? Only allergy and diet
+ * notes matter, and only those that match a rule in the keyword table. Anything
+ * else is saved but NOT checked, and the user should be told so.
+ */
+export function mealCheckCoverage(
+  memory: { text: string; category: string },
+  rules: readonly AllergenRule[],
+): "covered" | "not_covered" | "not_applicable" {
+  if (!SAFETY_CATEGORIES.has(memory.category)) return "not_applicable";
+  const memoryTokens = tokens(memory.text);
+  return rules.some((r) => anyTerm(memoryTokens, r.memoryTerms)) ? "covered" : "not_covered";
 }

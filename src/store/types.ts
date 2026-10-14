@@ -36,7 +36,7 @@ export interface Meal {
   dayKey: string;
   loggedAtMs: number;
   items: MealItem[];
-  /** Where the log came from. The DayZer0 app already understands "alexa". */
+  /** Where the log came from. In the DayZer0 app the meal's source is a free string. */
   source: string;
 }
 

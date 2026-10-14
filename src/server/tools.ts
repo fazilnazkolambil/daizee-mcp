@@ -93,7 +93,8 @@ export function registerTools(server: McpServer, service: DaizeeService, userId:
       description:
         "Use when the user says they ate or drank something (for example 'I had two idlis and sambar for breakfast'). " +
         "Pass each food as an item. If you know the calories or macros, pass them as TOTALS for that item; otherwise leave them out and the service estimates. " +
-        "Returns today's totals and what remains, and safetyFlags if the meal conflicts with an allergy or diet the user told us about. " +
+        "Returns today's totals and what remains, and safetyFlags if the meal conflicts with an allergy or diet the user told us about. "
+        + "The check matches words against a built-in list of common allergens and diets, so an empty safetyFlags list is NOT a clearance. " +
         "Logging the same meal twice in a day does not double count.",
       inputSchema: {
         mealType: z.enum(["breakfast", "lunch", "dinner", "snack"]).describe("Which meal this was."),
@@ -145,6 +146,7 @@ export function registerTools(server: McpServer, service: DaizeeService, userId:
       outputSchema: {
         outcome: z.enum(["saved", "refreshed", "needs_confirmation", "not_saved"]),
         memory: memoryView.nullable(),
+        mealCheck: z.enum(["covered", "not_covered", "not_applicable"]).describe("Whether future meals can be checked against this note automatically."),
         spoken: spokenField,
       },
       annotations: { readOnlyHint: false, idempotentHint: true, destructiveHint: false, openWorldHint: false },
@@ -174,7 +176,7 @@ export function registerTools(server: McpServer, service: DaizeeService, userId:
       title: "Forget or finish a note",
       description:
         "Use when something the user told us is no longer true ('my knee is better') or they ask to forget a note. " +
-        "Two steps: first call without confirm to find the note and ask the user; when they say yes, call again with confirm true. " +
+        "Two steps, enforced by the service: first call without confirm to find the note and ask the user; only after the user says yes, call again with confirm true (a confirm without that earlier ask is ignored). " +
         "Pass memoryId if you have it, or a short query such as 'knee'.",
       inputSchema: {
         memoryId: z.string().max(64).optional(),

@@ -54,7 +54,13 @@ export const CHECKIN_CATEGORIES: ReadonlySet<string> = new Set([
   "constraint",
   "habit",
   "goal",
+  "allergy",
 ]);
+/**
+ * An allergy lasts a year unless it is refreshed. Rather than let the safety net
+ * drop silently, ask about it for the last 30 days of its life.
+ */
+export const ALLERGY_CHECKIN_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
 export function normalizeCategory(category: string | undefined): string {
   if (category === "preference") return "food_preference";
@@ -136,13 +142,12 @@ export function pickExpiring(
   nowMs: number,
   max = 2,
 ): Memory[] {
-  const windowEnd = nowMs + EXPIRE_WINDOW_MS;
   return memories
     .filter(
       (m) =>
         m.status === "active" &&
         m.expiresAtMs > nowMs &&
-        m.expiresAtMs <= windowEnd &&
+        m.expiresAtMs <= nowMs + (m.category === "allergy" ? ALLERGY_CHECKIN_WINDOW_MS : EXPIRE_WINDOW_MS) &&
         CHECKIN_CATEGORIES.has(m.category),
     )
     .sort((a, b) => a.expiresAtMs - b.expiresAtMs)

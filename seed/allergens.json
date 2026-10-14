@@ -2,70 +2,314 @@
   "note": "Keyword rules for the informational safety check. Matching is simple word matching and CAN MISS things; it is a heads-up, never medical advice.",
   "rules": [
     {
-      "key": "peanut", "label": "peanuts",
-      "memoryTerms": ["peanut", "groundnut", "moongphali", "mungfali"],
-      "foodTerms": ["peanut", "groundnut", "satay", "moongphali", "mungfali", "pad thai"],
-      "containsTags": ["peanut"]
+      "key": "peanut",
+      "label": "peanuts",
+      "memoryTerms": [
+        "peanut",
+        "groundnut",
+        "moongphali",
+        "mungfali",
+        "nut"
+      ],
+      "foodTerms": [
+        "peanut",
+        "groundnut",
+        "satay",
+        "moongphali",
+        "mungfali",
+        "pad thai"
+      ],
+      "containsTags": [
+        "peanut"
+      ],
+      "kind": "allergen"
     },
     {
-      "key": "tree_nut", "label": "tree nuts",
-      "memoryTerms": ["tree nut", "almond", "cashew", "walnut", "pistachio", "hazelnut"],
-      "foodTerms": ["almond", "cashew", "walnut", "pistachio", "hazelnut", "marzipan"],
-      "containsTags": ["tree_nut"]
+      "key": "tree_nut",
+      "label": "tree nuts",
+      "memoryTerms": [
+        "tree nut",
+        "almond",
+        "cashew",
+        "walnut",
+        "pistachio",
+        "hazelnut",
+        "nut"
+      ],
+      "foodTerms": [
+        "almond",
+        "cashew",
+        "walnut",
+        "pistachio",
+        "hazelnut",
+        "marzipan",
+        "pecan",
+        "macadamia",
+        "kaju",
+        "badam",
+        "pista",
+        "praline",
+        "nutella"
+      ],
+      "containsTags": [
+        "tree_nut"
+      ],
+      "kind": "allergen"
     },
     {
-      "key": "dairy", "label": "dairy",
-      "memoryTerms": ["dairy", "milk", "lactose"],
-      "foodTerms": ["milk", "paneer", "curd", "yogurt", "yoghurt", "dahi", "cheese", "butter", "ghee", "cream", "lassi", "chai", "pizza"],
-      "containsTags": ["dairy"]
+      "key": "dairy",
+      "label": "dairy",
+      "memoryTerms": [
+        "dairy",
+        "milk",
+        "lactose"
+      ],
+      "foodTerms": [
+        "milk",
+        "paneer",
+        "curd",
+        "yogurt",
+        "yoghurt",
+        "dahi",
+        "cheese",
+        "butter",
+        "ghee",
+        "cream",
+        "lassi",
+        "chai",
+        "pizza"
+      ],
+      "containsTags": [
+        "dairy"
+      ],
+      "kind": "allergen"
     },
     {
-      "key": "egg", "label": "eggs",
-      "memoryTerms": ["egg"],
-      "foodTerms": ["egg", "omelette", "omelet", "mayonnaise", "mayo"],
-      "containsTags": ["egg"]
+      "key": "egg",
+      "label": "eggs",
+      "memoryTerms": [
+        "egg"
+      ],
+      "foodTerms": [
+        "egg",
+        "omelette",
+        "omelet",
+        "mayonnaise",
+        "mayo"
+      ],
+      "containsTags": [
+        "egg"
+      ],
+      "kind": "allergen"
     },
     {
-      "key": "gluten", "label": "gluten",
-      "memoryTerms": ["gluten", "wheat", "celiac", "coeliac"],
-      "foodTerms": ["wheat", "bread", "roti", "chapati", "paratha", "naan", "pasta", "sandwich", "samosa", "pizza", "toast"],
-      "containsTags": ["gluten"]
+      "key": "gluten",
+      "label": "gluten",
+      "memoryTerms": [
+        "gluten",
+        "wheat",
+        "celiac",
+        "coeliac"
+      ],
+      "foodTerms": [
+        "wheat",
+        "bread",
+        "roti",
+        "chapati",
+        "paratha",
+        "naan",
+        "pasta",
+        "sandwich",
+        "samosa",
+        "pizza",
+        "toast"
+      ],
+      "containsTags": [
+        "gluten"
+      ],
+      "kind": "allergen"
     },
     {
-      "key": "shellfish", "label": "shellfish",
-      "memoryTerms": ["shellfish", "prawn", "shrimp", "crab", "lobster"],
-      "foodTerms": ["prawn", "shrimp", "crab", "lobster", "shellfish"],
-      "containsTags": ["shellfish"]
+      "key": "shellfish",
+      "label": "shellfish",
+      "memoryTerms": [
+        "shellfish",
+        "prawn",
+        "shrimp",
+        "crab",
+        "lobster",
+        "seafood"
+      ],
+      "foodTerms": [
+        "prawn",
+        "shrimp",
+        "crab",
+        "lobster",
+        "shellfish",
+        "squid",
+        "calamari",
+        "oyster",
+        "mussel",
+        "clam",
+        "scallop"
+      ],
+      "containsTags": [
+        "shellfish"
+      ],
+      "kind": "allergen"
     },
     {
-      "key": "fish", "label": "fish",
-      "memoryTerms": ["fish"],
-      "foodTerms": ["fish", "salmon", "tuna", "sardine", "mackerel"],
-      "containsTags": ["fish"]
+      "key": "fish",
+      "label": "fish",
+      "memoryTerms": [
+        "fish",
+        "seafood"
+      ],
+      "foodTerms": [
+        "fish",
+        "salmon",
+        "tuna",
+        "sardine",
+        "mackerel",
+        "anchovy",
+        "pomfret",
+        "hilsa"
+      ],
+      "containsTags": [
+        "fish"
+      ],
+      "kind": "allergen"
     },
     {
-      "key": "soy", "label": "soy",
-      "memoryTerms": ["soy", "soya"],
-      "foodTerms": ["soy", "soya", "tofu", "edamame"],
-      "containsTags": ["soy"]
+      "key": "soy",
+      "label": "soy",
+      "memoryTerms": [
+        "soy",
+        "soya"
+      ],
+      "foodTerms": [
+        "soy",
+        "soya",
+        "tofu",
+        "edamame"
+      ],
+      "containsTags": [
+        "soy"
+      ],
+      "kind": "allergen"
     },
     {
-      "key": "sesame", "label": "sesame",
-      "memoryTerms": ["sesame"],
-      "foodTerms": ["sesame", "tahini"],
-      "containsTags": ["sesame"]
+      "key": "sesame",
+      "label": "sesame",
+      "memoryTerms": [
+        "sesame"
+      ],
+      "foodTerms": [
+        "sesame",
+        "tahini"
+      ],
+      "containsTags": [
+        "sesame"
+      ],
+      "kind": "allergen"
     },
     {
-      "key": "vegetarian", "label": "a vegetarian diet",
-      "memoryTerms": ["vegetarian"],
-      "foodTerms": ["chicken", "mutton", "lamb", "beef", "pork", "bacon", "ham", "meat", "fish", "prawn", "shrimp"],
-      "containsTags": ["meat", "fish", "shellfish"]
+      "key": "vegetarian",
+      "label": "a vegetarian diet",
+      "memoryTerms": [
+        "vegetarian"
+      ],
+      "foodTerms": [
+        "chicken",
+        "mutton",
+        "lamb",
+        "beef",
+        "pork",
+        "bacon",
+        "ham",
+        "meat",
+        "fish",
+        "prawn",
+        "shrimp"
+      ],
+      "containsTags": [
+        "meat",
+        "fish",
+        "shellfish"
+      ],
+      "kind": "diet"
     },
     {
-      "key": "vegan", "label": "a vegan diet",
-      "memoryTerms": ["vegan"],
-      "foodTerms": ["chicken", "mutton", "lamb", "beef", "pork", "bacon", "ham", "meat", "fish", "prawn", "shrimp", "egg", "omelette", "milk", "paneer", "curd", "yogurt", "cheese", "butter", "ghee", "cream", "lassi", "chai", "honey"],
-      "containsTags": ["meat", "fish", "shellfish", "egg", "dairy"]
+      "key": "vegan",
+      "label": "a vegan diet",
+      "memoryTerms": [
+        "vegan"
+      ],
+      "foodTerms": [
+        "chicken",
+        "mutton",
+        "lamb",
+        "beef",
+        "pork",
+        "bacon",
+        "ham",
+        "meat",
+        "fish",
+        "prawn",
+        "shrimp",
+        "egg",
+        "omelette",
+        "milk",
+        "paneer",
+        "curd",
+        "yogurt",
+        "cheese",
+        "butter",
+        "ghee",
+        "cream",
+        "lassi",
+        "chai",
+        "honey"
+      ],
+      "containsTags": [
+        "meat",
+        "fish",
+        "shellfish",
+        "egg",
+        "dairy"
+      ],
+      "kind": "diet"
+    },
+    {
+      "key": "pork",
+      "label": "a no-pork diet",
+      "kind": "diet",
+      "memoryTerms": [
+        "pork"
+      ],
+      "foodTerms": [
+        "pork",
+        "bacon",
+        "ham",
+        "sausage",
+        "pepperoni",
+        "salami"
+      ],
+      "containsTags": []
+    },
+    {
+      "key": "beef",
+      "label": "a no-beef diet",
+      "kind": "diet",
+      "memoryTerms": [
+        "beef"
+      ],
+      "foodTerms": [
+        "beef",
+        "steak",
+        "veal"
+      ],
+      "containsTags": []
     }
   ]
 }

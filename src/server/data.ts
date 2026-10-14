@@ -25,6 +25,8 @@ export interface Dish {
 export interface AllergenRule {
   key: string;
   label: string;
+  /** 'allergen' reads "may contain X"; 'diet' reads "may not fit X". */
+  kind?: "allergen" | "diet";
   memoryTerms: string[];
   foodTerms: string[];
   containsTags: string[];
