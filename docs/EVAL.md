@@ -5,8 +5,8 @@ Nothing in this file is hand-written: rerun the command to reproduce it.
 
 - Model: `gemini-3.1-flash-lite`
 - Cases passed: **12 / 12**
-- Model calls: 24 (p50 1433 ms, p95 5915 ms)
-- Tokens: 38001 in, 541 out (1583 in and 23 out per call on average)
+- Model calls: 24 (p50 1162 ms, p95 2505 ms)
+- Tokens: 37995 in, 533 out (1583 in and 22 out per call on average)
 
 | Case | Result | Tools called | Failed checks |
 |---|---|---|---|

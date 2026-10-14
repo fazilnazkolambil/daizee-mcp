@@ -1,0 +1,28 @@
+{
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "runtime": "nodejs22",
+      "ignore": ["node_modules", ".git", "src", "build.mjs", "tsconfig.json", ".secret.local", "*.log"],
+      "predeploy": ["npm --prefix \"$PROJECT_DIR\" run build:functions"]
+    }
+  ],
+  "hosting": {
+    "site": "daizee-mcp-demo",
+    "public": "simulator/dist",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "predeploy": ["npm --prefix \"$PROJECT_DIR\" run build:sim"],
+    "rewrites": [
+      { "source": "/mcp", "function": { "functionId": "api", "region": "us-central1" } },
+      { "source": "/health", "function": { "functionId": "api", "region": "us-central1" } },
+      { "source": "/brain/**", "function": { "functionId": "api", "region": "us-central1" } },
+      { "source": "/demo/**", "function": { "functionId": "api", "region": "us-central1" } },
+      { "source": "/.well-known/**", "function": { "functionId": "api", "region": "us-central1" } }
+    ],
+    "headers": [
+      { "source": "/assets/**", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] },
+      { "source": "/index.html", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }
+    ]
+  }
+}

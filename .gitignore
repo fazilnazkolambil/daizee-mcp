@@ -9,3 +9,8 @@ dist/
 coverage/
 .firebase/
 .claude/
+functions/lib/
+functions/seed/
+functions/node_modules/
+functions/.secret.local
+.secret.local

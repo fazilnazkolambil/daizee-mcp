@@ -1,9 +1,11 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { SeedUser } from "../store/inMemoryStore.js";
 
-const SEED_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../../seed");
+const HERE = dirname(fileURLToPath(import.meta.url));
+// From src/server the data is at ../../seed; from the packaged function (lib/) it is at ../seed.
+const SEED_DIR = [resolve(HERE, "../../seed"), resolve(HERE, "../seed")].find((dir) => existsSync(resolve(dir, "maya.json"))) ?? resolve(HERE, "../../seed");
 
 function readJson<T>(name: string): T {
   return JSON.parse(readFileSync(resolve(SEED_DIR, name), "utf8")) as T;
