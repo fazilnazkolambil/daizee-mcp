@@ -245,8 +245,7 @@ export class DaizeeService {
       outcome: (refreshed ? "refreshed" : "saved") as "refreshed" | "saved",
       memory: view,
       spoken: spoken(
-        refreshed ? `I already knew that, so I've kept it fresh.` : `Got it, I'll remember that`,
-        view && `${lifespan(view.expiresInDays)}.`,
+        `${refreshed ? "I already knew that, so I've kept it fresh" : "Got it, I'll remember that"}${view ? ` ${lifespan(view.expiresInDays)}` : ""}.`,
       ),
     };
   }

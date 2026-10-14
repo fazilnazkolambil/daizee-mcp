@@ -137,6 +137,8 @@ describe("memory across a fresh conversation, and over time", () => {
     const { svc } = setup();
     const out = await svc.remember("maya", { category: "symptom", text: "Left knee is sore" });
     expect(out.outcome).toBe("refreshed");
+    expect(out.spoken).not.toMatch(/\.\s+for /); // no broken sentence like "fresh. for 7 days."
+    expectVoiceSafe(out.spoken);
     const memories = (await svc.recall("maya")).memories.filter((m) => /knee/.test(m.text));
     expect(memories).toHaveLength(1);
   });
