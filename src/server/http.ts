@@ -1,5 +1,8 @@
+import { existsSync, readFileSync, statSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { extname, join, normalize, sep } from "node:path";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { BrainError, type Brain } from "../brain/gemini.js";
 import type { ManualClock } from "../memory/index.js";
 import type { Store } from "../store/types.js";
 import { createMcpServer } from "./mcpServer.js";
@@ -15,6 +18,13 @@ export interface AppOptions {
   allowedOrigins?: readonly string[];
   /** The user a request acts as when it names none. */
   defaultUser?: string;
+  /**
+   * The demo page's assistant brain (separate from the MCP server, which has no
+   * language model). Only reachable in demo mode.
+   */
+  brain?: Brain | null;
+  /** Folder with the built demo page, served at "/". */
+  staticDir?: string;
 }
 
 const MAX_BODY_BYTES = 100_000;
@@ -53,6 +63,30 @@ async function readBody(req: IncomingMessage): Promise<unknown> {
 function headerValue(req: IncomingMessage, name: string): string | undefined {
   const v = req.headers[name];
   return Array.isArray(v) ? v[0] : v;
+}
+
+const CONTENT_TYPES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".ico": "image/x-icon",
+  ".map": "application/json",
+};
+
+/** Serves a file from `root`, refusing anything outside it. Returns false if not found. */
+function serveStatic(root: string, pathname: string, res: ServerResponse): boolean {
+  const rel = normalize(decodeURIComponent(pathname)).replace(/^([/\\]|\.\.)+/, "");
+  const file = join(root, rel === "" || rel.endsWith(sep) ? join(rel, "index.html") : rel);
+  if (!file.startsWith(root) || !existsSync(file) || !statSync(file).isFile()) return false;
+  res.writeHead(200, {
+    "content-type": CONTENT_TYPES[extname(file)] ?? "application/octet-stream",
+    "cache-control": "no-cache",
+  });
+  res.end(readFileSync(file));
+  return true;
 }
 
 /**
@@ -145,10 +179,36 @@ export function createApp(opts: AppOptions): Handler {
         return;
       }
 
+      // The demo page's assistant brain: demo mode only, and never the MCP server.
+      if (opts.demo && url.pathname === "/brain/status" && method === "GET") {
+        sendJson(res, 200, { configured: Boolean(opts.brain), model: opts.brain?.model ?? null });
+        return;
+      }
+      if (opts.demo && url.pathname === "/brain/step") {
+        if (method !== "POST") {
+          res.setHeader("Allow", "POST");
+          sendJson(res, 405, { error: "Use POST" });
+          return;
+        }
+        if (!opts.brain) {
+          sendJson(res, 503, { error: "brain_not_configured", message: "No Gemini key is set. Use replay mode." });
+          return;
+        }
+        try {
+          sendJson(res, 200, await opts.brain.step(await readBody(req)));
+        } catch (err) {
+          if (err instanceof BrainError) sendJson(res, err.status, { error: "brain_error", message: err.message });
+          else throw err;
+        }
+        return;
+      }
+
       if (opts.demo && url.pathname.startsWith("/demo/")) {
         await handleDemo(opts, url.pathname, method, req, res);
         return;
       }
+
+      if (opts.staticDir && method === "GET" && serveStatic(opts.staticDir, url.pathname, res)) return;
 
       sendJson(res, 404, { error: "Not found" });
     } catch (err) {
