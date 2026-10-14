@@ -8,3 +8,4 @@ dist/
 .daizee-data/
 coverage/
 .firebase/
+.claude/

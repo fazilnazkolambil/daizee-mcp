@@ -9,11 +9,13 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p simulator/tsconfig.json --noEmit",
     "start": "tsx src/server/main.ts",
-    "demo": "tsx src/server/main.ts",
+    "demo": "npm run build:sim && tsx src/server/main.ts",
     "test": "vitest run",
-    "lint:voice": "tsx tools/voice-lint/cli.ts"
+    "lint:voice": "tsx tools/voice-lint/cli.ts",
+    "build:sim": "vite build --config simulator/vite.config.ts",
+    "dev:sim": "vite --config simulator/vite.config.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.1",
@@ -23,6 +25,7 @@
     "@types/node": "^22.0.0",
     "tsx": "^4.20.0",
     "typescript": "~5.9.3",
+    "vite": "^7.3.7",
     "vitest": "^3.2.0"
   }
 }
