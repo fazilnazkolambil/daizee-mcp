@@ -13,6 +13,6 @@
     "rootDir": ".",
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "tools/**/*.ts"],
+  "include": ["src/**/*.ts", "tests/**/*.ts", "tools/**/*.ts", "evals/**/*.ts"],
   "exclude": ["node_modules", "dist", "simulator", "functions"]
 }

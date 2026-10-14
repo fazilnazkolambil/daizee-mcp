@@ -15,7 +15,8 @@
     "test": "vitest run",
     "lint:voice": "tsx tools/voice-lint/cli.ts",
     "build:sim": "vite build --config simulator/vite.config.ts",
-    "dev:sim": "vite --config simulator/vite.config.ts"
+    "dev:sim": "vite --config simulator/vite.config.ts",
+    "eval:live": "tsx evals/orchestrator.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.1",
