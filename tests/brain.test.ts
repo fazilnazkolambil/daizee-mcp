@@ -113,6 +113,39 @@ describe("Brain.step", () => {
     await expect(brain.step({ messages: MESSAGES, tools: TOOLS })).rejects.toMatchObject({ status: 429 });
   });
 
+  it("waits out a short rate limit once and then succeeds", async () => {
+    let calls = 0;
+    const waits: number[] = [];
+    const fetchImpl = (async () => {
+      calls++;
+      if (calls === 1) {
+        return new Response(JSON.stringify({ error: { details: [{ retryDelay: "7s" }] } }), { status: 429 });
+      }
+      return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "ok" }] } }] }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const brain = new Brain({ apiKey: "k", model: "m", fetchImpl, sleep: async (ms) => void waits.push(ms) });
+    expect(await brain.step({ messages: MESSAGES, tools: TOOLS })).toMatchObject({ type: "final", text: "ok" });
+    expect(calls).toBe(2);
+    expect(waits[0]).toBeGreaterThanOrEqual(7000);
+  });
+
+  it("gives a clear message when the rate limit does not clear", async () => {
+    const fetchImpl = (async () => new Response(JSON.stringify({ error: { details: [{ retryDelay: "7s" }] } }), { status: 429 })) as unknown as typeof fetch;
+    const brain = new Brain({ apiKey: "k", model: "m", fetchImpl, sleep: async () => undefined });
+    await expect(brain.step({ messages: MESSAGES, tools: TOOLS })).rejects.toMatchObject({ status: 429, message: expect.stringMatching(/rate-limited.*replay/i) });
+  });
+
+  it("does not wait when the provider asks for a very long delay", async () => {
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls++;
+      return new Response(JSON.stringify({ error: { details: [{ retryDelay: "3600s" }] } }), { status: 429 });
+    }) as unknown as typeof fetch;
+    const brain = new Brain({ apiKey: "k", model: "m", fetchImpl, sleep: async () => { throw new Error("should not sleep"); } });
+    await expect(brain.step({ messages: MESSAGES, tools: TOOLS })).rejects.toMatchObject({ status: 429 });
+    expect(calls).toBe(1);
+  });
+
   it("does not leak the provider's error body", async () => {
     const fetchImpl = (async () => new Response("secret provider details", { status: 500 })) as unknown as typeof fetch;
     const brain = new Brain({ apiKey: "k", model: "m", fetchImpl });

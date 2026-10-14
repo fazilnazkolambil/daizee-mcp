@@ -39,6 +39,8 @@ export interface BrainOptions {
   apiKey: string;
   model: string;
   fetchImpl?: typeof fetch;
+  /** Replaceable in tests so they do not really wait. */
+  sleep?: (ms: number) => Promise<void>;
   /** Hard cap on model calls per UTC day, so a public demo cannot run up a bill. */
   dailyCap?: number;
   now?: () => number;
@@ -75,6 +77,22 @@ interface GeminiPart {
 interface GeminiContent {
   role: "user" | "model";
   parts: GeminiPart[];
+}
+
+const MAX_RETRY_WAIT_MS = 12_000;
+
+const sleep = (ms: number) => new Promise<void>((ok) => setTimeout(ok, ms));
+
+/** How long Google asks us to wait, from the error body. Null if it does not say. */
+async function retryDelayMs(res: Response): Promise<number | null> {
+  try {
+    const body = (await res.clone().json()) as { error?: { details?: Array<{ retryDelay?: string }> } };
+    const delay = body.error?.details?.find((d) => typeof d.retryDelay === "string")?.retryDelay;
+    const seconds = delay ? Number.parseFloat(delay) : Number.NaN;
+    return Number.isFinite(seconds) ? Math.ceil(seconds * 1000) + 250 : null;
+  } catch {
+    return null;
+  }
 }
 
 export class BrainError extends Error {
@@ -209,7 +227,7 @@ export class Brain {
 
     const doFetch = this.opts.fetchImpl ?? fetch;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(this.opts.model)}:generateContent`;
-    const res = await doFetch(url, {
+    const request = {
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": this.opts.apiKey },
       body: JSON.stringify({
@@ -227,11 +245,27 @@ export class Brain {
         toolConfig: { functionCallingConfig: { mode: "AUTO" } },
         generationConfig: { temperature: 0.2, maxOutputTokens: LIMITS.maxOutputTokens },
       }),
-    });
+    };
+
+    let res = await doFetch(url, request);
+    if (res.status === 429) {
+      // Free keys allow only ~15 requests a minute. A short wait usually clears it.
+      const wait = await retryDelayMs(res);
+      if (wait !== null && wait <= MAX_RETRY_WAIT_MS) {
+        await (this.opts.sleep ?? sleep)(wait);
+        res = await doFetch(url, request);
+      }
+    }
 
     if (!res.ok) {
       // Never forward the provider's body: it can echo request details.
-      throw new BrainError(`The assistant model returned HTTP ${res.status}`, res.status === 429 ? 429 : 502);
+      if (res.status === 429) {
+        throw new BrainError(
+          "The assistant model is rate-limited right now (free Gemini keys allow about 15 requests a minute). Wait a few seconds and try again, or switch to replay.",
+          429,
+        );
+      }
+      throw new BrainError(`The assistant model returned HTTP ${res.status}`, 502);
     }
     return parseGeminiResponse(await res.json());
   }
@@ -243,7 +277,7 @@ export function brainFromEnv(env: NodeJS.ProcessEnv = process.env): Brain | null
   if (!apiKey) return null;
   return new Brain({
     apiKey,
-    model: env.GEMINI_MODEL?.trim() || "gemini-2.5-flash",
+    model: env.GEMINI_MODEL?.trim() || "gemini-3.1-flash-lite",
     dailyCap: Number(env.DAIZEE_BRAIN_DAILY_CAP) || 300,
   });
 }
