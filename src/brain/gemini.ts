@@ -80,6 +80,7 @@ interface GeminiContent {
 }
 
 const MAX_RETRY_WAIT_MS = 12_000;
+const TRANSIENT_RETRY_MS = 1_500;
 
 const sleep = (ms: number) => new Promise<void>((ok) => setTimeout(ok, ms));
 
@@ -257,6 +258,12 @@ export class Brain {
       }
     }
 
+    if (res.status === 503) {
+      // "High demand" spikes usually clear within a moment: one short retry.
+      await (this.opts.sleep ?? sleep)(TRANSIENT_RETRY_MS);
+      res = await doFetch(url, request);
+    }
+
     if (!res.ok) {
       // Never forward the provider's body: it can echo request details.
       if (res.status === 429) {
@@ -265,7 +272,12 @@ export class Brain {
           429,
         );
       }
-      throw new BrainError(`The assistant model returned HTTP ${res.status}`, 502);
+      throw new BrainError(
+        res.status === 503
+          ? "The assistant model is busy right now. Please try again in a moment, or switch to replay."
+          : `The assistant model returned HTTP ${res.status}`,
+        502,
+      );
     }
     return parseGeminiResponse(await res.json());
   }

@@ -22,6 +22,8 @@ Open <http://localhost:8787>. With no keys the page runs in **replay mode**: the
 
 `npm start` runs only the MCP server (no page).
 
+**Hosted demo:** <https://daizee-mcp-demo.web.app> runs the same code on Firebase (Hosting plus one Cloud Function, with the Gemini key in Secret Manager). It uses fictional data only. State lives in one server instance's memory and is shared by everyone, so it resets when the instance restarts; use **Reset demo** at any time. The MCP endpoint is `https://daizee-mcp-demo.web.app/mcp`. The `deploy` script and `firebase.json` are in this repo, and they target only that demo project.
+
 Try it with the official MCP Inspector (pin the version, it needs Node 22.19+):
 
 ```bash

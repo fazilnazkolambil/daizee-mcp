@@ -146,6 +146,27 @@ describe("Brain.step", () => {
     expect(calls).toBe(1);
   });
 
+  it("retries a transient 503 once, then succeeds", async () => {
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls++;
+      return calls === 1
+        ? new Response("busy", { status: 503 })
+        : new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "back" }] } }] }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const brain = new Brain({ apiKey: "k", model: "m", fetchImpl, sleep: async () => undefined });
+    expect(await brain.step({ messages: MESSAGES, tools: TOOLS })).toMatchObject({ text: "back" });
+    expect(calls).toBe(2);
+  });
+
+  it("explains a persistent 503 in plain words and does not retry forever", async () => {
+    let calls = 0;
+    const fetchImpl = (async () => { calls++; return new Response("busy", { status: 503 }); }) as unknown as typeof fetch;
+    const brain = new Brain({ apiKey: "k", model: "m", fetchImpl, sleep: async () => undefined });
+    await expect(brain.step({ messages: MESSAGES, tools: TOOLS })).rejects.toMatchObject({ status: 502, message: expect.stringMatching(/busy.*replay/i) });
+    expect(calls).toBe(2);
+  });
+
   it("does not leak the provider's error body", async () => {
     const fetchImpl = (async () => new Response("secret provider details", { status: 500 })) as unknown as typeof fetch;
     const brain = new Brain({ apiKey: "k", model: "m", fetchImpl });
