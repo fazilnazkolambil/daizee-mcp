@@ -50,6 +50,8 @@ export const LIMITS = {
   maxMessages: 40,
   maxTools: 12,
   maxTextChars: 2000,
+  /** Total JSON size of one request (messages + tools), so one cap unit cannot carry megabytes. */
+  maxRequestChars: 60_000,
   maxOutputTokens: 600,
 } as const;
 
@@ -109,6 +111,9 @@ export class BrainError extends Error {
 /** Validates what the browser sent. Throws BrainError (400) when it is not acceptable. */
 export function validateRequest(body: unknown): { messages: BrainMessage[]; tools: BrainTool[] } {
   const b = body as { messages?: unknown; tools?: unknown } | null;
+  if (JSON.stringify(body ?? null).length > LIMITS.maxRequestChars) {
+    throw new BrainError("That request is too large.", 400);
+  }
   if (!b || !Array.isArray(b.messages) || !Array.isArray(b.tools)) {
     throw new BrainError("Expected { messages: [], tools: [] }", 400);
   }
@@ -224,14 +229,8 @@ export class Brain {
 
   async step(body: unknown): Promise<BrainStep> {
     const { messages, tools } = validateRequest(body);
-    this.checkCap();
-
-    const doFetch = this.opts.fetchImpl ?? fetch;
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(this.opts.model)}:generateContent`;
-    const request = {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-goog-api-key": this.opts.apiKey },
-      body: JSON.stringify({
+    return parseGeminiResponse(
+      await this.generate({
         systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
         contents: toGeminiContents(messages),
         tools: [
@@ -246,22 +245,50 @@ export class Brain {
         toolConfig: { functionCallingConfig: { mode: "AUTO" } },
         generationConfig: { temperature: 0.2, maxOutputTokens: LIMITS.maxOutputTokens },
       }),
+    );
+  }
+
+  /**
+   * One generateContent call with every shared safeguard: it counts toward the
+   * daily cap, the key travels only in a header, a short 429 is waited out and
+   * retried once, a transient 503 is retried once, and failures become plain
+   * English (the provider's body is never forwarded). Returns the parsed JSON.
+   * Callers validate their input first, so a bad request costs nothing.
+   */
+  async generate(payload: unknown): Promise<unknown> {
+    this.checkCap();
+
+    const doFetch = this.opts.fetchImpl ?? fetch;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(this.opts.model)}:generateContent`;
+    const request = {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": this.opts.apiKey },
+      body: JSON.stringify(payload),
     };
 
-    let res = await doFetch(url, request);
+    const send = async (): Promise<Response> => {
+      try {
+        return await doFetch(url, request);
+      } catch {
+        // A dropped connection or DNS failure: say so plainly (never forward internals).
+        throw new BrainError("Could not reach the assistant model. Please try again, or switch to replay.", 502);
+      }
+    };
+
+    let res = await send();
     if (res.status === 429) {
       // Free keys allow only ~15 requests a minute. A short wait usually clears it.
       const wait = await retryDelayMs(res);
       if (wait !== null && wait <= MAX_RETRY_WAIT_MS) {
         await (this.opts.sleep ?? sleep)(wait);
-        res = await doFetch(url, request);
+        res = await send();
       }
     }
 
     if (res.status === 503) {
       // "High demand" spikes usually clear within a moment: one short retry.
       await (this.opts.sleep ?? sleep)(TRANSIENT_RETRY_MS);
-      res = await doFetch(url, request);
+      res = await send();
     }
 
     if (!res.ok) {
@@ -279,7 +306,11 @@ export class Brain {
         502,
       );
     }
-    return parseGeminiResponse(await res.json());
+    try {
+      return await res.json();
+    } catch {
+      throw new BrainError("The assistant model sent an unreadable reply. Please try again.", 502);
+    }
   }
 }
 

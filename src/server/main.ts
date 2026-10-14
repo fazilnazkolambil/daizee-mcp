@@ -23,6 +23,11 @@ export function buildApp(options: { demo?: boolean; allowedOrigins?: string[]; b
     allowedOrigins: options.allowedOrigins,
     brain: options.brain ?? null,
     staticDir: options.staticDir,
+    vocabulary: [
+      ...data.dishes.flatMap((d) => [d.name, ...d.aliases]),
+      ...data.rules.flatMap((r) => r.memoryTerms),
+      "log", "breakfast", "lunch", "dinner", "snack", "allergic", "knee", "sore", "kilos", "calories", "forget", "remember",
+    ],
   });
   return { handler, service, store, clock };
 }

@@ -167,6 +167,28 @@ describe("Brain.step", () => {
     expect(calls).toBe(2);
   });
 
+  it("rejects an oversized request before calling the model", async () => {
+    const { fetchImpl, seen } = fakeGemini([{ text: "x" }]);
+    const brain = new Brain({ apiKey: "k", model: "m", fetchImpl });
+    const bloated = TOOLS.map((t) => ({ ...t, description: "d".repeat(70_000) }));
+    await expect(brain.step({ messages: MESSAGES, tools: bloated })).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/too large/) });
+    expect(seen).toHaveLength(0);
+  });
+
+  it("turns a network failure into a plain message, not a raw error", async () => {
+    const fetchImpl = (async () => { throw new TypeError("fetch failed: ECONNRESET at 10.1.2.3"); }) as unknown as typeof fetch;
+    const brain = new Brain({ apiKey: "k", model: "m", fetchImpl });
+    const err = await brain.step({ messages: MESSAGES, tools: TOOLS }).catch((e) => e);
+    expect(err).toMatchObject({ status: 502, message: expect.stringMatching(/could not reach/i) });
+    expect(String(err.message)).not.toMatch(/ECONNRESET|10\.1\.2\.3/);
+  });
+
+  it("turns an unreadable reply into a plain message", async () => {
+    const fetchImpl = (async () => new Response("<html>not json</html>", { status: 200 })) as unknown as typeof fetch;
+    const brain = new Brain({ apiKey: "k", model: "m", fetchImpl });
+    await expect(brain.step({ messages: MESSAGES, tools: TOOLS })).rejects.toMatchObject({ status: 502, message: expect.stringMatching(/unreadable/) });
+  });
+
   it("does not leak the provider's error body", async () => {
     const fetchImpl = (async () => new Response("secret provider details", { status: 500 })) as unknown as typeof fetch;
     const brain = new Brain({ apiKey: "k", model: "m", fetchImpl });

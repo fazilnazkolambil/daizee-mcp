@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { extname, join, normalize, sep } from "node:path";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { BrainError, type Brain } from "../brain/gemini.js";
+import { MAX_AUDIO_BYTES, TranscribeError, readRawBody, transcribe } from "../brain/transcribe.js";
 import type { ManualClock } from "../memory/index.js";
 import type { Store } from "../store/types.js";
 import { createMcpServer } from "./mcpServer.js";
@@ -23,6 +24,8 @@ export interface AppOptions {
    * language model). Only reachable in demo mode.
    */
   brain?: Brain | null;
+  /** Words the service knows (dishes, allergy terms): helps voice transcription hear them right. */
+  vocabulary?: readonly string[];
   /** Folder with the built demo page, served at "/". */
   staticDir?: string;
 }
@@ -198,6 +201,28 @@ export function createApp(opts: AppOptions): Handler {
           sendJson(res, 200, await opts.brain.step(await readBody(req)));
         } catch (err) {
           if (err instanceof BrainError) sendJson(res, err.status, { error: "brain_error", message: err.message });
+          else throw err;
+        }
+        return;
+      }
+
+      // Speech to text for the demo page: raw WAV bytes in, { text } out (see src/brain/transcribe.ts).
+      if (opts.demo && url.pathname === "/brain/transcribe") {
+        if (method !== "POST") {
+          res.setHeader("Allow", "POST");
+          sendJson(res, 405, { error: "Use POST" });
+          return;
+        }
+        if (!opts.brain) {
+          sendJson(res, 503, { error: "brain_not_configured", message: "No Gemini key is set. Use replay mode." });
+          return;
+        }
+        try {
+          const audio = await readRawBody(req, MAX_AUDIO_BYTES);
+          sendJson(res, 200, { text: await transcribe(opts.brain, audio, opts.vocabulary ?? []) });
+        } catch (err) {
+          if (err instanceof TranscribeError) sendJson(res, err.status, { error: err.code, message: err.message });
+          else if (err instanceof BrainError) sendJson(res, err.status, { error: "brain_error", message: err.message });
           else throw err;
         }
         return;
