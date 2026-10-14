@@ -25,3 +25,11 @@ Only things that actually happened while building. Each entry: what was attempte
 - **Severity:** Low (noise that could worry a new user).
 - **Workaround:** None needed.
 - **Suggestion:** Document which install scripts MCP-adjacent tooling needs.
+
+## 2026-10-14: A stateless server makes the browser console show a "405" on every connection
+
+- **Task:** Connect a browser MCP client to a stateless Streamable HTTP server.
+- **What happened:** After `initialized`, the SDK client always sends a `GET /mcp` to open an optional server-to-client stream. A stateless server correctly answers 405, but the browser console prints a red "Failed to load resource" line each time, which looks like a bug to a first-time reader.
+- **Severity:** Low (cosmetic, but alarming).
+- **Workaround:** Label the trace row "no stream offered: stateless server" and document it.
+- **Suggestion:** A client option to skip the optional GET when the server is known to be stateless, or a response header that says so.

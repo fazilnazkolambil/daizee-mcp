@@ -26,7 +26,7 @@ Built from 2026-10-13 in `daizee-mcp`:
 - A tested TypeScript port of the app's expiring, safety-first memory rules, behind a swappable store
 - An allergy / diet safety check on meal logging, with a controllable clock for demonstrating expiry
 - Contract tests that drive the server with the real MCP client, and a CI-written wire trace
-- (in progress) A demo page that acts as a real MCP client with voice
+- A demo page that acts as a real MCP client: live wire trace, cards, voice, a New-conversation proof and a time-advance control, with a replay mode and an optional live Gemini brain
 
 **Before:** Daizee lived only inside one Android app, and you had to type.
 **After:** the same kind of memory is a service any MCP assistant can call, so it survives a fresh conversation.

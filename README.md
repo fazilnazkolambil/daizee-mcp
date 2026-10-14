@@ -6,17 +6,21 @@ Tell any voice assistant once that you're allergic to peanuts, and every meal yo
 
 `daizee-mcp` is an [MCP](https://modelcontextprotocol.io) server (Model Context Protocol, the standard way an AI assistant calls outside tools). It is built for the Amazon Developer Hackathon, Alexa+ track, and it exposes the memory and meal-logging ideas from DayZer0, a live Android AI health-coach app.
 
-> **Honest status:** this is a *simulated* Alexa+-style integration. Amazon's real Alexa+ add-on tooling is limited to select partners, so nothing here has been tested on a real Alexa device and nothing is Alexa-certified. The server follows Amazon's public design guidance, and a demo page (in progress) acts as a real MCP client to show it working.
+> **Honest status:** this is a *simulated* Alexa+-style integration. Amazon's real Alexa+ add-on tooling is limited to select partners, so nothing here has been tested on a real Alexa device and nothing is Alexa-certified. The server follows Amazon's public design guidance, and a demo page acts as a real MCP client to show it working.
 
 ## Quick start (no accounts, no keys)
 
 ```bash
-git clone <this repo>
+git clone https://github.com/fazilnazkolambil/daizee-mcp
 cd daizee-mcp
 npm ci
-npm test        # 66 checks, including real MCP calls over HTTP
-npm start       # MCP server on http://localhost:8787/mcp
+npm test        # automated checks, including real MCP calls over HTTP
+npm run demo    # builds the demo page and serves everything on http://localhost:8787
 ```
+
+Open <http://localhost:8787>. With no keys the page runs in **replay mode**: the assistant's decisions are scripted, but every call to the service is real MCP and the trace panel shows the actual JSON. Click the suggested phrases from top to bottom, or press **New conversation** and **Advance time** to see memory persist and expire.
+
+`npm start` runs only the MCP server (no page).
 
 Try it with the official MCP Inspector (pin the version, it needs Node 22.19+):
 
@@ -36,6 +40,18 @@ curl -s -X POST localhost:8787/mcp \
 ```
 
 Two **fictional** demo people are built in: `maya` (has history) and `sam` (blank). Choose with the `x-daizee-user` header. All data is invented.
+
+## The demo page
+
+A generic "voice assistant" screen (no Amazon or Echo logos) that is a **real MCP client**: the official SDK's `Client` + `StreamableHTTPClientTransport`. It shows:
+
+- the live wire trace: `initialize`, `tools/list`, `tools/call`, with status, round-trip time and the server's own time against the 500 ms target
+- cards drawn from the structured data (calorie ring, memory chips with lifespan bars, safety banners)
+- **New conversation**: wipes the assistant's own history and opens a brand-new MCP connection. The service still remembers.
+- **Advance time**: moves a demo clock forward so you can watch a note age, raise a check-in, and expire
+- voice in and out through the browser's Web Speech API (typed input always works). In Chrome, speech recognition sends audio to Google's servers.
+
+**Two assistant modes.** *Replay* (default, no keys): scripted "which tool should I call" decisions, real calls, and the real service's replies. *Live*: Gemini decides which tool to call. To enable it, copy `.env.example` to `.env` and set `GEMINI_API_KEY` (the file is git-ignored). The key stays on the server, and the browser never sees it. The live brain lives in `src/brain/` and is **separate from the MCP server**, which still contains no language model.
 
 ## What it does: six actions
 
@@ -76,7 +92,8 @@ The server negotiates MCP protocol versions `2025-11-25` and `2025-03-26` (Amazo
 | Storage | **In-memory demo data**. A Firebase store plugs into the same interface later |
 | Alexa+ itself | **Simulated.** No real Alexa device or Amazon tooling used |
 | Account linking / OAuth | **Not built.** A demo header picks the user. A real deployment would link the user's existing Daizee account |
-| Demo page with voice and live wire trace | **In progress** |
+| Demo page with live wire trace, cards, voice, replay mode | **Real**, a simulation of the assistant side |
+| Live Gemini brain | **Optional**, needs your own key |
 
 ## How it is organized
 
@@ -84,6 +101,8 @@ The server negotiates MCP protocol versions `2025-11-25` and `2025-03-26` (Amazo
 src/memory/   The memory rules (pure functions, no imports from the rest of the project)
 src/store/    Where data lives (swappable)
 src/server/   The six actions and the web doorway
+src/brain/    The demo page's assistant brain (Gemini). NOT part of the MCP server
+simulator/    The demo page (Vite + TypeScript)
 seed/         Fictional demo people, a small food table, allergy keyword rules
 tests/        Memory rules, behaviour, and real MCP over HTTP
 docs/         Update story, friction log, wire trace
