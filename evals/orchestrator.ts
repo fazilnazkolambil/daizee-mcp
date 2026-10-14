@@ -115,13 +115,25 @@ async function brainStep(messages: BrainMessage[], tools: unknown[]): Promise<{ 
   if (wait > 0) await new Promise((ok) => setTimeout(ok, wait));
   lastCall = Date.now();
   const t = performance.now();
-  const res = await fetch(`${BASE}/brain/step`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ messages, tools }),
-  });
-  const body = (await res.json()) as BrainStep & { message?: string };
-  if (!res.ok) throw new Error(body.message ?? `brain HTTP ${res.status}`);
+  let body: (BrainStep & { message?: string }) | null = null;
+  let status = 0;
+  for (let attempt = 0; attempt < 2 && !body; attempt++) {
+    const res = await fetch(`${BASE}/brain/step`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ messages, tools }),
+    });
+    status = res.status;
+    const text = await res.text();
+    try {
+      body = JSON.parse(text);
+    } catch {
+      // A platform error page, not our JSON. A step has no side effects, so retry once.
+      await new Promise((ok) => setTimeout(ok, 1000));
+    }
+    if (body && !res.ok) throw new Error(body.message ?? `brain HTTP ${res.status}`);
+  }
+  if (!body) throw new Error(`brain returned a non-JSON reply twice (HTTP ${status})`);
   return { step: body, ms: performance.now() - t };
 }
 
