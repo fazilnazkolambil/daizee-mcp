@@ -44,6 +44,13 @@ export interface BrainOptions {
   /** Hard cap on model calls per UTC day, so a public demo cannot run up a bill. */
   dailyCap?: number;
   now?: () => number;
+  /**
+   * If the model has not answered a tool-choice step after this many ms, send
+   * the same request once more and use whichever answer arrives first (Gemini's
+   * response time varies from about 1 s to over 10 s for the same request).
+   * 0 turns it off. Default HEDGE_AFTER_MS.
+   */
+  hedgeAfterMs?: number;
 }
 
 export const LIMITS = {
@@ -84,6 +91,9 @@ interface GeminiContent {
 
 const MAX_RETRY_WAIT_MS = 12_000;
 const TRANSIENT_RETRY_MS = 1_500;
+export const HEDGE_AFTER_MS = 3_000;
+/** After a 429, no backups for this long: on a free key they would only use up the minute's quota. */
+const HEDGE_PAUSE_AFTER_429_MS = 60_000;
 
 const sleep = (ms: number) => new Promise<void>((ok) => setTimeout(ok, ms));
 
@@ -227,6 +237,10 @@ export class Brain {
     return this.opts.model;
   }
 
+  /** Backup requests sent so far (each also counts toward the daily cap). */
+  hedgesSent = 0;
+  private lastRateLimitedAt = -Infinity;
+
   private checkCap(): void {
     const now = (this.opts.now ?? Date.now)();
     const stamp = new Date(now).toISOString().slice(0, 10);
@@ -257,7 +271,7 @@ export class Brain {
         ],
         toolConfig: { functionCallingConfig: { mode: "AUTO" } },
         generationConfig: { temperature: 0.2, maxOutputTokens: LIMITS.maxOutputTokens },
-      }),
+      }, { hedge: true }),
     );
   }
 
@@ -267,8 +281,11 @@ export class Brain {
    * retried once, a transient 503 is retried once, and failures become plain
    * English (the provider's body is never forwarded). Returns the parsed JSON.
    * Callers validate their input first, so a bad request costs nothing.
+   *
+   * With `hedge`, a slow answer gets one backup request (see hedgeAfterMs).
+   * Transcription does not hedge: an audio upload is big and legitimately slow.
    */
-  async generate(payload: unknown): Promise<unknown> {
+  async generate(payload: unknown, opts: { hedge?: boolean } = {}): Promise<unknown> {
     this.checkCap();
 
     const doFetch = this.opts.fetchImpl ?? fetch;
@@ -279,9 +296,10 @@ export class Brain {
       body: JSON.stringify(payload),
     };
 
+    const hedgeAfter = opts.hedge ? (this.opts.hedgeAfterMs ?? HEDGE_AFTER_MS) : 0;
     const send = async (): Promise<Response> => {
       try {
-        return await doFetch(url, request);
+        return hedgeAfter > 0 ? await this.sendHedged(doFetch, url, request, hedgeAfter) : await doFetch(url, request);
       } catch {
         // A dropped connection or DNS failure: say so plainly (never forward internals).
         throw new BrainError("Could not reach the assistant model. Please try again, or switch to replay.", 502);
@@ -290,6 +308,7 @@ export class Brain {
 
     let res = await send();
     if (res.status === 429) {
+      this.lastRateLimitedAt = (this.opts.now ?? Date.now)();
       // Free keys allow only ~15 requests a minute. A short wait usually clears it.
       const wait = await retryDelayMs(res);
       if (wait !== null && wait <= MAX_RETRY_WAIT_MS) {
@@ -325,6 +344,63 @@ export class Brain {
       throw new BrainError("The assistant model sent an unreadable reply. Please try again.", 502);
     }
   }
+
+  /**
+   * Sends the request; if no answer after `afterMs`, sends it once more. The
+   * first OK answer wins and the other request is cancelled. If neither is OK,
+   * the first one that finished is returned, so the usual 429/503 handling
+   * applies. A backup counts toward the daily cap and is skipped when the cap
+   * is used up. Rejects only when both requests fail to connect.
+   */
+  private sendHedged(doFetch: typeof fetch, url: string, request: RequestInit, afterMs: number): Promise<Response> {
+    return new Promise<Response>((resolve, reject) => {
+      const controllers: AbortController[] = [];
+      let running = 0;
+      let done = false;
+      let firstNotOk: Response | undefined;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+
+      const finish = (res: Response | undefined, winner: AbortController | undefined, err?: unknown) => {
+        done = true;
+        if (timer) clearTimeout(timer);
+        for (const c of controllers) if (c !== winner) c.abort();
+        if (res) resolve(res);
+        else reject(err);
+      };
+      const launch = () => {
+        const c = new AbortController();
+        controllers.push(c);
+        running++;
+        doFetch(url, { ...request, signal: c.signal }).then(
+          (res) => {
+            running--;
+            if (done) return;
+            if (res.ok) return finish(res, c);
+            firstNotOk ??= res;
+            if (running === 0) finish(firstNotOk, c);
+          },
+          (err) => {
+            running--;
+            if (done) return;
+            if (running === 0) finish(firstNotOk, undefined, err);
+          },
+        );
+      };
+
+      launch();
+      timer = setTimeout(() => {
+        if (done || firstNotOk) return; // answered, or already failing: let the normal retries handle it
+        if ((this.opts.now ?? Date.now)() - this.lastRateLimitedAt < HEDGE_PAUSE_AFTER_429_MS) return;
+        try {
+          this.checkCap();
+        } catch {
+          return; // daily cap reached: no backup
+        }
+        this.hedgesSent++;
+        launch();
+      }, afterMs);
+    });
+  }
 }
 
 /** Builds a Brain from the environment, or returns null when no key is set. */
@@ -335,5 +411,7 @@ export function brainFromEnv(env: NodeJS.ProcessEnv = process.env): Brain | null
     apiKey,
     model: env.GEMINI_MODEL?.trim() || "gemini-3.1-flash-lite",
     dailyCap: Number(env.DAIZEE_BRAIN_DAILY_CAP) || 300,
+    // GEMINI_HEDGE_AFTER_MS=0 turns backup requests off (e.g. to save a free key's quota).
+    hedgeAfterMs: env.GEMINI_HEDGE_AFTER_MS !== undefined && env.GEMINI_HEDGE_AFTER_MS.trim() !== "" ? Math.max(0, Number(env.GEMINI_HEDGE_AFTER_MS) || 0) : undefined,
   });
 }

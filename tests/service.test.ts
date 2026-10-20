@@ -133,6 +133,13 @@ describe("memory across a fresh conversation, and over time", () => {
     expect(out.memories.length).toBeLessThanOrEqual(10);
   });
 
+  it("finds a note to forget by its real words, not by filler ('nothing like this' is not 'likes paneer')", async () => {
+    const { svc } = setup();
+    expect((await svc.resolve("maya", { query: "nothing like this" })).outcome).toBe("not_found");
+    const out = await svc.resolve("maya", { query: "I like paneer" });
+    expect(out.candidates.map((m) => m.text)).toEqual(["likes paneer"]);
+  });
+
   it("shows a sixth, low-priority note on screen and counts it out loud ('going to Kerala for a week')", async () => {
     const { svc } = setup();
     await svc.remember("maya", { category: "goal", text: "travelling to Kerala for a week", durationDays: 7 });

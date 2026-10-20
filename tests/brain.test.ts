@@ -265,3 +265,120 @@ describe("HTTP routes", () => {
     await new Promise<void>((ok) => server.close(() => ok()));
   });
 });
+
+describe("backup request when the model is slow (hedging)", () => {
+  /** A fake Gemini whose Nth request answers after delays[N] ms with statuses[N]. Records aborts. */
+  function slowGemini(delays: number[], statuses: number[] = []) {
+    let n = 0;
+    const aborted: number[] = [];
+    const fetchImpl = ((_url: string, init: RequestInit) => {
+      const i = n++;
+      return new Promise<Response>((resolve, reject) => {
+        const t = setTimeout(() => {
+          const status = statuses[i] ?? 200;
+          resolve(
+            new Response(
+              JSON.stringify({ candidates: [{ content: { role: "model", parts: [{ text: `answer ${i}` }] } }] }),
+              { status },
+            ),
+          );
+        }, delays[i] ?? 0);
+        init.signal?.addEventListener("abort", () => {
+          clearTimeout(t);
+          aborted.push(i);
+          reject(new DOMException("aborted", "AbortError"));
+        });
+      });
+    }) as unknown as typeof fetch;
+    return { fetchImpl, aborted, count: () => n };
+  }
+
+  it("sends nothing extra when the model answers in time", async () => {
+    const g = slowGemini([5]);
+    const brain = new Brain({ apiKey: "k", model: "m", fetchImpl: g.fetchImpl, hedgeAfterMs: 50 });
+    const step = await brain.step({ messages: MESSAGES, tools: TOOLS });
+    expect(step).toMatchObject({ type: "final", text: "answer 0" });
+    expect(g.count()).toBe(1);
+    expect(brain.hedgesSent).toBe(0);
+  });
+
+  it("uses the backup when the first request stalls, and cancels the slow one", async () => {
+    const g = slowGemini([2_000, 10]);
+    const brain = new Brain({ apiKey: "k", model: "m", fetchImpl: g.fetchImpl, hedgeAfterMs: 30 });
+    const started = performance.now();
+    const step = await brain.step({ messages: MESSAGES, tools: TOOLS });
+    expect(step).toMatchObject({ type: "final", text: "answer 1" });
+    expect(performance.now() - started).toBeLessThan(1_000);
+    expect(g.count()).toBe(2);
+    expect(g.aborted).toEqual([0]);
+    expect(brain.hedgesSent).toBe(1);
+  });
+
+  it("keeps the first answer if it arrives before the backup", async () => {
+    const g = slowGemini([60, 500]);
+    const brain = new Brain({ apiKey: "k", model: "m", fetchImpl: g.fetchImpl, hedgeAfterMs: 30 });
+    const step = await brain.step({ messages: MESSAGES, tools: TOOLS });
+    expect(step).toMatchObject({ type: "final", text: "answer 0" });
+    expect(g.aborted).toEqual([1]);
+  });
+
+  it("prefers an OK backup over a failed first answer", async () => {
+    const g = slowGemini([60, 90], [500, 200]);
+    const brain = new Brain({ apiKey: "k", model: "m", fetchImpl: g.fetchImpl, hedgeAfterMs: 30 });
+    expect(await brain.step({ messages: MESSAGES, tools: TOOLS })).toMatchObject({ type: "final", text: "answer 1" });
+  });
+
+  it("counts the backup toward the daily cap and skips it when the cap is used up", async () => {
+    const g = slowGemini([80, 5]);
+    const brain = new Brain({ apiKey: "k", model: "m", fetchImpl: g.fetchImpl, hedgeAfterMs: 20, dailyCap: 1 });
+    expect(await brain.step({ messages: MESSAGES, tools: TOOLS })).toMatchObject({ type: "final", text: "answer 0" });
+    expect(g.count()).toBe(1);
+    expect(brain.hedgesSent).toBe(0);
+  });
+
+  it("is off with hedgeAfterMs: 0", async () => {
+    const g = slowGemini([80]);
+    const brain = new Brain({ apiKey: "k", model: "m", fetchImpl: g.fetchImpl, hedgeAfterMs: 0 });
+    await brain.step({ messages: MESSAGES, tools: TOOLS });
+    expect(g.count()).toBe(1);
+  });
+});
+
+describe("backups pause after a rate limit", () => {
+  it("sends no backup for a minute after a 429", async () => {
+    let n = 0;
+    let clock = 1_000_000;
+    const fetchImpl = ((_url: string, init: RequestInit) => {
+      const i = n++;
+      if (i === 0) {
+        // First call: rate-limited, with a retry delay the brain waits out (sleep is faked).
+        return Promise.resolve(
+          new Response(JSON.stringify({ error: { details: [{ retryDelay: "1s" }] } }), { status: 429 }),
+        );
+      }
+      return new Promise<Response>((resolve, reject) => {
+        const t = setTimeout(
+          () => resolve(new Response(JSON.stringify({ candidates: [{ content: { role: "model", parts: [{ text: `answer ${i}` }] } }] }))),
+          80,
+        );
+        init.signal?.addEventListener("abort", () => (clearTimeout(t), reject(new DOMException("aborted", "AbortError"))));
+      });
+    }) as unknown as typeof fetch;
+    const brain = new Brain({ apiKey: "k", model: "m", fetchImpl, hedgeAfterMs: 20, sleep: async () => undefined, now: () => clock });
+    expect(await brain.step({ messages: MESSAGES, tools: TOOLS })).toMatchObject({ type: "final", text: "answer 1" });
+    expect(brain.hedgesSent).toBe(0); // the retry after the 429 was slow but got no backup
+    clock += 61_000;
+    await brain.step({ messages: MESSAGES, tools: TOOLS });
+    expect(brain.hedgesSent).toBe(1); // a minute later, backups are back
+  });
+});
+
+describe("brainFromEnv backup setting", () => {
+  it("reads GEMINI_HEDGE_AFTER_MS, with 0 meaning off", async () => {
+    const { brainFromEnv } = await import("../src/brain/gemini.js");
+    const opts = (b: unknown) => (b as { opts: { hedgeAfterMs?: number } }).opts;
+    expect(opts(brainFromEnv({ GEMINI_API_KEY: "k" })).hedgeAfterMs).toBeUndefined();
+    expect(opts(brainFromEnv({ GEMINI_API_KEY: "k", GEMINI_HEDGE_AFTER_MS: "0" })).hedgeAfterMs).toBe(0);
+    expect(opts(brainFromEnv({ GEMINI_API_KEY: "k", GEMINI_HEDGE_AFTER_MS: "2500" })).hedgeAfterMs).toBe(2500);
+  });
+});

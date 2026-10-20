@@ -483,6 +483,9 @@ const STOP_WORDS = new Set([
   "my", "the", "a", "an", "is", "are", "was", "be", "it", "its", "of", "about", "note", "notes",
   "to", "that", "this", "forget", "remove", "delete", "better", "fine", "ok", "okay", "now",
   "no", "longer", "anymore", "not", "i", "me", "you", "and", "or", "has", "have", "feel", "feels",
+  // Filler that would otherwise match a note ("nothing like this" must not find "likes paneer").
+  "like", "likes", "nothing", "something", "anything", "thing", "things", "one", "just", "really",
+  "so", "very", "for", "with", "in", "on", "at", "what", "do", "does", "did", "all", "any", "some",
 ]);
 
 /** Active memories that share meaningful words with what the user said. */
