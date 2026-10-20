@@ -76,14 +76,56 @@ export function categoryPriority(category: string): number {
   return CATEGORY_PRIORITY[key] ?? CATEGORY_PRIORITY[category] ?? 9;
 }
 
+function clampDurationDays(n: number): number {
+  return Math.min(Math.max(1, Math.round(n)), 365);
+}
+
 /** A given duration wins (1..365 days, rounded); otherwise the category default. */
 export function resolveTtlDays(category: string, ttlDays?: number): number {
   const ttl = Number(ttlDays);
   if (Number.isFinite(ttl) && ttl > 0) {
-    return Math.min(Math.max(1, Math.round(ttl)), 365);
+    return clampDurationDays(ttl);
   }
   const cat = normalizeCategory(category);
   return MEMORY_TTL_DAYS[cat] ?? MEMORY_TTL_DAYS[category] ?? DEFAULT_TTL_DAYS;
+}
+
+/**
+ * Pull a duration from natural language when the assistant omitted durationDays.
+ * Conservative: requires an explicit unit (days, weeks, months, year).
+ */
+export function parseDurationDays(text: string): number | undefined {
+  const t = normalizeText(text);
+  if (!t) return undefined;
+
+  const dayMatch = t.match(/\b(?:for|next|in)\s+(\d+)\s*days?\b|\b(\d+)\s*day\b|\b(\d+)\s*-\s*day\b/);
+  if (dayMatch) {
+    const n = Number(dayMatch[1] ?? dayMatch[2] ?? dayMatch[3]);
+    if (Number.isFinite(n) && n > 0) return clampDurationDays(n);
+  }
+
+  if (/\bthis week\b|\bfor a week\b|\bfor one week\b|\ba week\b/.test(t)) return 7;
+  const weekMatch = t.match(/\b(?:for|next|in)\s+(\d+)\s*weeks?\b|\b(\d+)\s*weeks?\b/);
+  if (weekMatch) {
+    const n = Number(weekMatch[1] ?? weekMatch[2]);
+    if (Number.isFinite(n) && n > 0) return clampDurationDays(n * 7);
+  }
+
+  if (/\bthis month\b|\bfor a month\b|\bfor one month\b|\ba month\b/.test(t)) return 30;
+  const monthMatch = t.match(/\b(?:for|next|in)\s+(\d+)\s*months?\b|\b(\d+)\s*months?\b/);
+  if (monthMatch) {
+    const n = Number(monthMatch[1] ?? monthMatch[2]);
+    if (Number.isFinite(n) && n > 0) return clampDurationDays(n * 30);
+  }
+
+  if (/\b(?:for|next|in)\s+a year\b|\ba year\b/.test(t)) return 365;
+  const yearMatch = t.match(/\b(?:for|next|in)\s+(\d+)\s*years?\b|\b(\d+)\s*years?\b/);
+  if (yearMatch) {
+    const n = Number(yearMatch[1] ?? yearMatch[2]);
+    if (Number.isFinite(n) && n > 0) return clampDurationDays(n * 365);
+  }
+
+  return undefined;
 }
 
 export function normalizeText(text: string | undefined): string {

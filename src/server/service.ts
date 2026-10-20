@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import {
   isSameFact,
   normalizeText,
+  parseDurationDays,
   pickExpiring,
   planOps,
   selectActive,
@@ -218,10 +219,14 @@ export class DaizeeService {
     await this.profile(userId);
     const now = this.clock.now();
     const text = input.text.trim().replace(/\s+/g, " ");
+    const ttlDays =
+      input.durationDays !== undefined && input.durationDays !== null
+        ? input.durationDays
+        : parseDurationDays(text);
     const known = await this.activeMemories(userId);
     const plan = planOps({
       known,
-      ops: [{ op: "add", text, category: input.category, ttlDays: input.durationDays, confidence: input.confidence ?? 0.9 }],
+      ops: [{ op: "add", text, category: input.category, ttlDays, confidence: input.confidence ?? 0.9 }],
       nowMs: now,
       newId: () => newId("mem"),
     });

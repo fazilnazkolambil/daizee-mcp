@@ -68,9 +68,7 @@ export function registerTools(server: McpServer, service: DaizeeService, userId:
     {
       title: "How am I doing today",
       description:
-        "Use when the user asks how their day is going, what they have eaten, how many calories or how much protein is left, or opens the add-on. " +
-        "Returns calories and macros eaten vs goal, what remains, and any check-ins: notes about the user (like a sore knee) that are about to expire. " +
-        "For what to focus on or what the plan is today, use get_today_plan instead.",
+        "How the user's day is going: calories and macros eaten vs goal, what is left, and notes about to expire (check-ins). Use for 'how am I doing today?' or when the add-on opens. For today's focus, use get_today_plan.",
       outputSchema: {
         dayKey: z.string(),
         eaten: targets,
@@ -92,10 +90,7 @@ export function registerTools(server: McpServer, service: DaizeeService, userId:
     {
       title: "What should I focus on today",
       description:
-        "Use when the user asks what to focus on today, what today's plan is, or what they should eat, do or work on today " +
-        "(for example 'what should I focus on today?', 'what's my plan?'). Read only, logs nothing. " +
-        "Returns the day's one focus with its reason, three short steps (eat, move, recover) made by the Daizee app, " +
-        "and the afternoon nudge if there is one. For calories eaten or left, use get_day_progress instead.",
+        "Today's focus and eat/move/recover steps from the Daizee app, plus any afternoon nudge. Use for 'what should I focus on today?' or 'what's my plan?'. Read only.",
       outputSchema: {
         dayKey: z.string(),
         hasPlan: z.boolean(),
@@ -115,17 +110,13 @@ export function registerTools(server: McpServer, service: DaizeeService, userId:
     {
       title: "Log a meal",
       description:
-        "Use when the user says they ate or drank something (for example 'I had two idlis and sambar for breakfast'). " +
-        "Pass each food as an item. If you know the calories or macros, pass them as TOTALS for that item; otherwise leave them out and the service estimates. " +
-        "Returns today's totals and what remains, and safetyFlags if the meal conflicts with an allergy or diet the user told us about. "
-        + "The check matches words against a built-in list of common allergens and diets, so an empty safetyFlags list is NOT a clearance. " +
-        "Logging the same meal twice in a day does not double count.",
+        "Log food the user ate or drank. One item per food; give calories/macros (totals per item) only if known, otherwise they are estimated. Returns today's totals and safetyFlags for conflicts with stored allergies or diets. The check is word matching, so an empty safetyFlags list is NOT a clearance. Repeats never double count.",
       inputSchema: {
         mealType: z.enum(["breakfast", "lunch", "dinner", "snack"]).describe("Which meal this was."),
         items: z
           .array(
             z.object({
-              name: z.string().min(1).max(60).describe("The food, for example 'masala dosa'."),
+              name: z.string().min(1).max(60).describe("The food, e.g. 'masala dosa'."),
               quantity: z.number().positive().max(20).optional().describe("How many servings. Default 1."),
               calories: z.number().min(0).max(5000).optional().describe("Total calories for this item, if known."),
               protein: z.number().min(0).max(500).optional().describe("Total grams of protein, if known."),
@@ -135,7 +126,7 @@ export function registerTools(server: McpServer, service: DaizeeService, userId:
           )
           .min(1)
           .max(8),
-        idempotencyKey: z.string().max(64).optional().describe("Optional. Repeating the same key never logs twice."),
+        idempotencyKey: z.string().max(64).optional().describe("Same key never logs twice."),
       },
       outputSchema: {
         mealId: z.string(),
@@ -158,14 +149,12 @@ export function registerTools(server: McpServer, service: DaizeeService, userId:
     {
       title: "Remember something about me",
       description:
-        "Use when the user shares a lasting fact about themselves: an allergy, a diet, an injury or symptom, a habit, a food they like, or how they want to be coached " +
-        "(for example 'I'm allergic to peanuts', 'my left knee is sore this week'). Facts expire on purpose: an allergy lasts about a year, a sore knee about 5 days, " +
-        "unless the user gives a duration. Saying the same thing again just keeps it fresh.",
+        "Save a personal fact (allergy, diet, symptom, habit, preference, goal, travel). Save immediately; do not ask permission. Pass durationDays if the user named a time; else category TTL (allergy ~1y, symptom ~5d, habit ~60d). Repeats refresh.",
       inputSchema: {
         category: z.enum(MEMORY_CATEGORIES).describe("allergy, constraint (a diet or rule), symptom, habit, food_preference, coach_preference or goal."),
         text: z.string().min(3).max(120).describe("The fact, in a few words."),
-        durationDays: z.number().int().min(1).max(365).optional().describe("How long it stays true, if the user said."),
-        confidence: z.number().min(0).max(1).optional().describe("How sure you are the user meant it. Below 0.6 asks the user to confirm."),
+        durationDays: z.number().int().min(1).max(365).optional().describe("If user named a duration: 2 days → 2, this week → 7. Omit if no time said."),
+        confidence: z.number().min(0).max(1).optional().describe("Below 0.6 asks the user to confirm."),
       },
       outputSchema: {
         outcome: z.enum(["saved", "refreshed", "needs_confirmation", "not_saved"]),
@@ -183,8 +172,7 @@ export function registerTools(server: McpServer, service: DaizeeService, userId:
     {
       title: "What do you know about me",
       description:
-        "Use when the user asks what you know or remember about them, or before giving advice that depends on their allergies, injuries or preferences. " +
-        "Returns at most 5 active notes, most important first (allergies always come first), each with how many days it has left.",
+        "What is remembered about the user (up to 5, allergies first, with days left). Use when asked, or before advice that depends on allergies, injuries or preferences.",
       outputSchema: {
         memories: z.array(memoryView),
         spoken: spokenField,
@@ -199,12 +187,10 @@ export function registerTools(server: McpServer, service: DaizeeService, userId:
     {
       title: "Forget or finish a note",
       description:
-        "Use when something the user told us is no longer true ('my knee is better') or they ask to forget a note. " +
-        "Two steps, enforced by the service: first call without confirm to find the note and ask the user; only after the user says yes, call again with confirm true (a confirm without that earlier ask is ignored). " +
-        "Pass memoryId if you have it, or a short query such as 'knee'.",
+        "Forget or finish a note ('my knee is better'). Two steps, enforced by the service: call without confirm to find it and ask the user; only after they say yes, call again with confirm true. Pass memoryId or a short query such as 'knee'.",
       inputSchema: {
         memoryId: z.string().max(64).optional(),
-        query: z.string().min(2).max(60).optional().describe("A word or two that identifies the note, for example 'knee'."),
+        query: z.string().min(2).max(60).optional().describe("A word or two, e.g. 'knee'."),
         confirm: z.boolean().optional().describe("Set true only after the user has said yes."),
       },
       outputSchema: {
@@ -222,11 +208,10 @@ export function registerTools(server: McpServer, service: DaizeeService, userId:
     {
       title: "Log my weight",
       description:
-        "Use when the user says what they weigh today. One weigh-in per day: a second one replaces the first. " +
-        "The number is never spoken aloud. It is returned as data so a screen can show it. A very large change asks the user to confirm.",
+        "Log today's weight in kg (one per day; a second replaces it). It is shown on screen, never spoken aloud. A very large change asks for confirmation.",
       inputSchema: {
         kg: z.number().min(20).max(300).describe("Weight in kilograms."),
-        confirm: z.boolean().optional().describe("Set true only after the user confirmed an unusually large change."),
+        confirm: z.boolean().optional().describe("True only after the user confirmed a large change."),
       },
       outputSchema: {
         outcome: z.enum(["saved", "replaced", "needs_confirmation"]),

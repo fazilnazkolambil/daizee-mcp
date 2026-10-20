@@ -13,9 +13,12 @@ import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { BrainMessage, BrainStep } from "../src/brain/gemini.js";
+import { canReplyFast, replyFromResults } from "../simulator/src/reply.js";
 
 const BASE = process.env.EVAL_BASE ?? "http://localhost:8787";
 const MAX_HOPS = 5;
+/** EVAL_FAST=1 uses the tools' own sentence as the reply when one tool ran (what the page does by default). */
+const FAST = process.env.EVAL_FAST === "1";
 
 interface Call {
   name: string;
@@ -50,6 +53,26 @@ const CASES: Case[] = [
   {
     id: "teach-knee", user: "sam", say: ["My left knee has been sore this week."],
     checks: [{ label: "remember_about_user, category symptom", ok: (c) => used(c, "remember_about_user").some((x) => x.args.category === "symptom" && /knee/i.test(String(x.args.text))) }],
+  },
+  {
+    id: "kerala-trip", user: "sam", freshConversation: true, say: ["I'm going to Kerala for 2 days."],
+    checks: [
+      {
+        label: "remember_about_user without asking permission",
+        ok: (c, r) =>
+          used(c, "remember_about_user").some((x) => /kerala/i.test(String(x.args.text))) &&
+          !/would you like me to remember|should i remember/i.test(r),
+      },
+      {
+        label: "two-day TTL",
+        ok: (c) =>
+          used(c, "remember_about_user").some((x) => {
+            if (x.args.durationDays === 2) return true;
+            const mem = x.output?.memory as { expiresInDays?: number } | undefined;
+            return mem?.expiresInDays === 2;
+          }),
+      },
+    ],
   },
   {
     id: "pad-thai-flag", user: "sam", freshConversation: true, say: ["Log pad thai for dinner."],
@@ -159,6 +182,8 @@ interface CaseResult {
   calls: string[];
   reply: string;
   latenciesMs: number[];
+  /** Per spoken turn: model time + tool time (waits for the rate limit are NOT counted). */
+  turnMs: number[];
   inputTokens: number;
   outputTokens: number;
   error?: string;
@@ -170,37 +195,49 @@ async function runCase(c: Case, client: Client): Promise<CaseResult> {
   const history: BrainMessage[] = [];
   const calls: Call[] = [];
   const latenciesMs: number[] = [];
+  const turnMs: number[] = [];
   let inputTokens = 0;
   let outputTokens = 0;
   let reply = "";
 
   for (const utterance of c.say) {
     history.push({ role: "user", text: utterance });
+    let turnTime = 0;
     for (let hop = 0; hop < MAX_HOPS; hop++) {
       const { step, ms } = await brainStep(history, toolDefs);
       latenciesMs.push(ms);
+      turnTime += ms;
       inputTokens += step.usage?.inputTokens ?? 0;
       outputTokens += step.usage?.outputTokens ?? 0;
       if (step.type === "calls") {
         history.push({ role: "assistant", calls: step.calls, raw: step.raw });
         const results: Array<{ id?: string; name: string; output: unknown }> = [];
         for (const call of step.calls) {
+          const t0 = performance.now();
           const r = await client.callTool({ name: call.name, arguments: call.args });
+          turnTime += performance.now() - t0;
           const output = r.isError ? { isError: true } : (r.structuredContent as Record<string, unknown> | undefined);
           calls.push({ name: call.name, args: call.args, output, isError: Boolean(r.isError) });
           results.push({ id: call.id, name: call.name, output: output ?? {} });
         }
         history.push({ role: "tool", results });
+        if (FAST && canReplyFast(results)) {
+          // No second model call: the tool already wrote the sentence.
+          reply = replyFromResults(results);
+          history.push({ role: "assistant", text: reply });
+          break;
+        }
         continue;
       }
       history.push({ role: "assistant", text: step.text, raw: step.raw });
       reply = step.text;
       break;
     }
+    turnMs.push(turnTime);
   }
 
   const failures = c.checks.filter((k) => !k.ok(calls, reply)).map((k) => k.label);
-  return { id: c.id, passed: failures.length === 0, failures, calls: calls.map((x) => x.name), reply, latenciesMs, inputTokens, outputTokens };
+  return { id: c.id, passed: failures.length === 0, failures, calls: calls.map((x) => x.name), reply, latenciesMs, turnMs, inputTokens, outputTokens };
 }
 
 function percentile(values: number[], p: number): number {
@@ -229,7 +266,7 @@ async function main(): Promise<void> {
     try {
       results.push(await runCase(c, client));
     } catch (err) {
-      results.push({ id: c.id, passed: false, failures: ["error"], calls: [], reply: "", latenciesMs: [], inputTokens: 0, outputTokens: 0, error: String(err instanceof Error ? err.message : err) });
+      results.push({ id: c.id, passed: false, failures: ["error"], calls: [], reply: "", latenciesMs: [], turnMs: [], inputTokens: 0, outputTokens: 0, error: String(err instanceof Error ? err.message : err) });
     }
     const r = results[results.length - 1]!;
     console.log(`${r.passed ? "PASS" : "FAIL"}  ${r.id.padEnd(18)} tools=[${r.calls.join(", ")}]${r.failures.length ? "  missing: " + r.failures.join("; ") : ""}${r.error ? "  error: " + r.error : ""}`);
@@ -242,7 +279,10 @@ async function main(): Promise<void> {
   const inTok = results.reduce((a, r) => a + r.inputTokens, 0);
   const outTok = results.reduce((a, r) => a + r.outputTokens, 0);
   const steps = lat.length;
-  console.log(`\n${passed}/${results.length} cases passed. model=${status.model}  steps=${steps}  p50=${percentile(lat, 50).toFixed(0)}ms  p95=${percentile(lat, 95).toFixed(0)}ms`);
+  const turns = results.flatMap((r) => r.turnMs);
+  const avgTurnMs = turns.length ? turns.reduce((a, b) => a + b, 0) / turns.length : 0;
+  const turnCount = turns.length;
+  console.log(`\n${passed}/${results.length} cases passed. model=${status.model}  mode=${FAST ? "fast" : "natural"}  steps=${steps}  p50=${percentile(lat, 50).toFixed(0)}ms  p95=${percentile(lat, 95).toFixed(0)}ms  avg turn=${(avgTurnMs / 1000).toFixed(2)}s  tokens in=${inTok} out=${outTok}`);
 
   if (errored > 0) {
     // A run with infrastructure errors says nothing about tool choice, so write no report.
@@ -257,6 +297,8 @@ async function main(): Promise<void> {
     "Nothing in this file is hand-written: rerun the command to reproduce it.",
     "",
     `- Model: \`${status.model}\``,
+    `- Replies: **${FAST ? "fast (the tool's own sentence when one tool ran)" : "natural (a second model call writes the reply)"}**`,
+    `- Spoken turns: ${turnCount}; average **${(avgTurnMs / 1000).toFixed(2)} s per turn** (model + tool time) with **${(steps / Math.max(1, turnCount)).toFixed(2)} model calls per turn**`,
     `- Cases passed: **${passed} / ${results.length}**`,
     `- Model calls: ${steps} (p50 ${percentile(lat, 50).toFixed(0)} ms, p95 ${percentile(lat, 95).toFixed(0)} ms)`,
     `- Tokens: ${inTok} in, ${outTok} out (${steps ? Math.round(inTok / steps) : 0} in and ${steps ? Math.round(outTok / steps) : 0} out per call on average)`,
@@ -268,7 +310,7 @@ async function main(): Promise<void> {
     "Cases are phrased the way a person would say them. Gemini's answers vary between runs, so a case that passes once is not a guarantee; run the eval several times before relying on a number.",
     "",
   ].join("\n");
-  const out = resolve(dirname(fileURLToPath(import.meta.url)), "../docs/EVAL.md");
+  const out = process.env.EVAL_OUT ?? resolve(dirname(fileURLToPath(import.meta.url)), "../docs/EVAL.md");
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, md);
   console.log(`Wrote ${out}`);
