@@ -4,7 +4,7 @@ import { MEMORY_CATEGORIES } from "../memory/index.js";
 import { DaizeeService, UserNotFoundError } from "./service.js";
 
 /**
- * The six actions Alexa+ (or any MCP assistant) can call.
+ * The seven actions Alexa+ (or any MCP assistant) can call.
  *
  * Design rules, taken from Amazon's public Alexa+ add-on guidance:
  *  - one action per customer intent, with clear descriptions;
@@ -69,7 +69,8 @@ export function registerTools(server: McpServer, service: DaizeeService, userId:
       title: "How am I doing today",
       description:
         "Use when the user asks how their day is going, what they have eaten, how many calories or how much protein is left, or opens the add-on. " +
-        "Returns calories and macros eaten vs goal, what remains, and any check-ins: notes about the user (like a sore knee) that are about to expire.",
+        "Returns calories and macros eaten vs goal, what remains, and any check-ins: notes about the user (like a sore knee) that are about to expire. " +
+        "For what to focus on or what the plan is today, use get_today_plan instead.",
       outputSchema: {
         dayKey: z.string(),
         eaten: targets,
@@ -84,6 +85,29 @@ export function registerTools(server: McpServer, service: DaizeeService, userId:
       annotations: { readOnlyHint: true, idempotentHint: true, destructiveHint: false, openWorldHint: false },
     },
     () => run(() => service.dayProgress(userId)),
+  );
+
+  server.registerTool(
+    "get_today_plan",
+    {
+      title: "What should I focus on today",
+      description:
+        "Use when the user asks what to focus on today, what today's plan is, or what they should eat, do or work on today " +
+        "(for example 'what should I focus on today?', 'what's my plan?'). Read only, logs nothing. " +
+        "Returns the day's one focus with its reason, three short steps (eat, move, recover) made by the Daizee app, " +
+        "and the afternoon nudge if there is one. For calories eaten or left, use get_day_progress instead.",
+      outputSchema: {
+        dayKey: z.string(),
+        hasPlan: z.boolean(),
+        focus: z.object({ title: z.string(), why: z.string() }).nullable(),
+        plan: z.object({ eat: z.string(), move: z.string(), recover: z.string() }).nullable(),
+        summary: z.string(),
+        afternoon: z.object({ headline: z.string(), body: z.string() }).nullable(),
+        spoken: spokenField,
+      },
+      annotations: { readOnlyHint: true, idempotentHint: true, destructiveHint: false, openWorldHint: false },
+    },
+    () => run(() => service.todayPlan(userId)),
   );
 
   server.registerTool(

@@ -60,13 +60,14 @@ A generic "voice assistant" screen (no Amazon or Echo logos) that is a **real MC
 
 The default model is `gemini-3.1-flash-lite` (older ids such as `gemini-2.5-flash` are retired for new keys). Free Gemini keys allow about 15 requests a minute, so the brain waits out short limits and retries once.
 
-**Measured tool choice.** With the server running and a key set, `npm run eval:live` sends 12 spoken phrases through the real loop (Gemini picks tools, the real MCP server runs them) and writes [`docs/EVAL.md`](docs/EVAL.md). Cases include a two-step forget, an allergy flag after a fresh conversation, a weight that must not be spoken aloud, an off-topic joke, and a prompt-injection attempt. The author wrote the phrases, so treat the result as a smoke test, not a benchmark.
+**Measured tool choice.** With the server running and a key set, `npm run eval:live` sends 13 spoken phrases through the real loop (Gemini picks tools, the real MCP server runs them) and writes [`docs/EVAL.md`](docs/EVAL.md). Cases include a two-step forget, an allergy flag after a fresh conversation, a weight that must not be spoken aloud, an off-topic joke, and a prompt-injection attempt. The author wrote the phrases, so treat the result as a smoke test, not a benchmark.
 
-## What it does: six actions
+## What it does: seven actions
 
 | Action | What the assistant uses it for |
 |---|---|
 | `get_day_progress` | "How am I doing today?" Calories and macros vs goal, plus check-ins for notes about to expire |
+| `get_today_plan` | "What should I focus on today?" The day's one focus and its eat / move / recover steps from the Daizee app, plus the afternoon nudge. Read only |
 | `log_meal` | "I had two idlis and sambar." Logs it, and warns if it conflicts with an allergy or diet |
 | `remember_about_user` | "I'm allergic to peanuts." / "My knee is sore this week." |
 | `recall_what_you_know` | "What do you know about me?" Allergies always come first |
@@ -98,22 +99,75 @@ The server negotiates MCP protocol versions `2025-11-25` and `2025-03-26` (Amazo
 |---|---|
 | MCP server, tools, memory rules, safety check | **Real**, tested |
 | Streamable HTTP, protocol negotiation, Origin check | **Real**, tested |
-| Storage | **In-memory demo data**. A Firebase store plugs into the same interface later |
+| Storage | **In-memory demo data by default.** With `STORE=firestore` it reads and writes the real DayZer0 app's Firestore (see below), tested against the Firebase emulator with the app's own triggers |
+| Today's plan (`get_today_plan`) | **Real** when connected to the app (made by the app's backend). In-memory mode uses a seeded plan for the fictional users |
 | Alexa+ itself | **Simulated.** No real Alexa device or Amazon tooling used |
 | Account linking / OAuth | **Not built.** A demo header picks the user. A real deployment would link the user's existing Daizee account |
 | Demo page with live wire trace, cards, voice, replay mode | **Real**, a simulation of the assistant side |
 | Live Gemini brain | **Optional**, needs your own key |
 
+## Connected to the DayZer0 app
+
+By default everything is fictional and in memory. With `STORE=firestore` the same seven tools work on the **real DayZer0 app's data**: say "I had two idlis for breakfast" to the assistant, and the meal appears in the app, today's totals update, and Daizee posts a "Breakfast logged" card in that day's chat.
+
+How it fits in, without any model in this server:
+
+| Tool | Firestore (same shapes the app writes) | Then the app's own backend... |
+|---|---|---|
+| `log_meal` | creates `users/{uid}/meals/{id}` (`mealType: "BREAKFAST"`, flat `foods[]`, `totalCalories`, `createdAt` in ms, `source: "alexa"`) | `onMealWritten` rebuilds `daily/{date}.meals` and posts the chat card |
+| `log_weight` | sets `users/{uid}/weightLogs/weight_{date}` (one a day, like the app) | `onWeightLogWritten` updates the profile weight, plan and today's targets |
+| `remember_about_user`, `resolve_memory` | `users/{uid}/memories/{id}` with the app's memory fields | the app's Memories page and Daizee's chat see the same notes |
+| `get_day_progress`, `recall_what_you_know`, `get_today_plan` | read the profile, today's meals, notes, and `daily/{date}.todays_mission` / `afternoon` | |
+
+This server never writes the daily doc: totals stay the app backend's job.
+
+**Safety rails.**
+- Only accounts on an allowlist are reachable. `DAIZEE_ALLOWED_UIDS=demo=<uid>` maps the `x-daizee-user` header value `demo` to one Firebase uid. Any other name is refused before anything is read, and every document path is checked again against the allowlist ([`src/store/docDb.ts`](src/store/docDb.ts)).
+- A real project is only used with an explicit `DAIZEE_ALLOW_LIVE_FIRESTORE=1`. Without it the server refuses to start unless it points at the emulator.
+- In this mode the demo page's **Advance time** and **Reset** are switched off (real data is never wiped or time-shifted).
+- No real user data is in this repo. Tests use invented uids, a fake Firestore, and the emulator's `demo-` project, which cannot reach any real project.
+
+**Test it against the emulator** (needs the Firebase CLI and Java 21+):
+
+```bash
+npm run test:emulator
+```
+
+This runs [`tests/firestore.emulator.test.ts`](tests/firestore.emulator.test.ts): a real MCP client calls `log_meal` over HTTP and the meal lands in the Firestore emulator in the app's shape. To also run the app's **own** `onMealWritten` and `onWeightLogWritten` triggers in the Functions emulator (the DayZer0 repo is only read; its functions are copied to a temp folder and installed there):
+
+```bash
+DAYZER0_DIR=~/PROJECTS/Personal/DayZer0 npm run test:emulator
+```
+
+That run checks that the trigger rebuilt today's totals and posted the meal card, and that a voice weigh-in became the profile weight.
+
+**Run it against the real app** (for example, for a demo recording):
+
+1. Use a **demo account** in the app (not a personal one): sign in on the phone, finish onboarding so it has calorie targets, and copy its uid from Firebase console > Authentication.
+2. Create a service account key with the *Cloud Datastore User* role (Google Cloud console > IAM > Service accounts > Keys), save it outside the repo.
+3. Put this in `.env` (git-ignored):
+
+   ```bash
+   STORE=firestore
+   FIREBASE_PROJECT_ID=<the app's Firebase project id>
+   GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json
+   DAIZEE_ALLOWED_UIDS=demo=<the demo account's uid>
+   DAIZEE_ALLOW_LIVE_FIRESTORE=1
+   ```
+
+4. `npm run demo`, then talk to it with the header `x-daizee-user: demo` (the demo page picks `demo` automatically). The startup line says `LIVE DATA` and names the allowed users.
+
 ## How it is organized
 
 ```
 src/memory/   The memory rules (pure functions, no imports from the rest of the project)
-src/store/    Where data lives (swappable)
-src/server/   The six actions and the web doorway
+src/store/    Where data lives: in-memory (default) or the DayZer0 app's Firestore
+src/server/   The seven actions and the web doorway
 src/brain/    The demo page's assistant brain (Gemini). NOT part of the MCP server
 simulator/    The demo page (Vite + TypeScript)
 seed/         Fictional demo people, a small food table, allergy keyword rules
-tests/        Memory rules, behaviour, and real MCP over HTTP
+tests/        Memory rules, behaviour, real MCP over HTTP, and the Firestore store (fake + emulator)
+scripts/      Emulator test runner
 docs/         Update story, friction log, wire trace
 ```
 

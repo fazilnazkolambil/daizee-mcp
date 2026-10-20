@@ -16,7 +16,7 @@ import { newId } from "../store/inMemoryStore.js";
 import type { Meal, MealItem, MealType, Store, Targets } from "../store/types.js";
 import type { AllergenRule, Dish } from "./data.js";
 import { checkMeal, matchDish, mealCheckCoverage, tokens } from "./safety.js";
-import { lifespan, plural, round, spoken } from "./spoken.js";
+import { lifespan, MAX_SPOKEN_WORDS, plain, plural, round, spoken } from "./spoken.js";
 
 /**
  * All the behaviour behind the tools, with no MCP in it. The tools are thin
@@ -381,9 +381,60 @@ export class DaizeeService {
       ),
     };
   }
+
+  // ── Today's plan (read only) ────────────────────────────────────────────
+
+  async todayPlan(userId: string) {
+    const profile = await this.profile(userId);
+    const dayKey = dayKeyFor(this.clock.now(), profile.timezone);
+    const plan = await this.store.getTodayPlan(userId, dayKey);
+    if (!plan) {
+      return {
+        dayKey,
+        hasPlan: false,
+        focus: null,
+        plan: null,
+        summary: "",
+        afternoon: null,
+        spoken: spoken("There's no plan for today yet. Open the DayZer0 app and Daizee will make one."),
+      };
+    }
+    const sentence = (s: string) => (s && !/[.!?]$/.test(s) ? `${s}.` : s);
+    const steps = plan.plan;
+    // The essentials first; the extras only if they still fit in one short reply.
+    const spokenText = fitWords(
+      [
+        plan.focus ? `Your focus today: ${sentence(plan.focus.title)}` : sentence(plan.summary),
+        steps?.eat && `Eat: ${sentence(steps.eat)}`,
+        steps?.move && `Move: ${sentence(steps.move)}`,
+        steps?.recover && `Recover: ${sentence(steps.recover)}`,
+      ],
+      [plan.afternoon && `This afternoon: ${sentence(plan.afternoon.headline)}`, plan.focus && sentence(plan.focus.why)],
+    );
+    return {
+      dayKey,
+      hasPlan: true,
+      focus: plan.focus,
+      plan: plan.plan,
+      summary: plan.summary,
+      afternoon: plan.afternoon,
+      spoken: spokenText,
+    };
+  }
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────
+
+/** Joins the required parts, then adds optional ones only while the reply stays short. */
+function fitWords(required: Array<string | false | null | undefined>, optional: Array<string | false | null | undefined>): string {
+  let text = spoken(...required);
+  for (const extra of optional) {
+    if (!extra) continue;
+    const next = `${text} ${plain(extra)}`;
+    if (next.split(" ").length <= MAX_SPOKEN_WORDS) text = next;
+  }
+  return text;
+}
 
 function hash(s: string): string {
   return createHash("sha1").update(s).digest("hex").slice(0, 12);

@@ -22,14 +22,15 @@ From `0855abf` to the Shipaton entry commit `dff3530` (2026-09-30): 24 commits, 
 
 Built from 2026-10-14 in `daizee-mcp`:
 
-- An MCP server (official SDK, Streamable HTTP, stateless) with six voice-shaped actions
+- An MCP server (official SDK, Streamable HTTP, stateless) with seven voice-shaped actions, including `get_today_plan` (read only: the app's daily focus and eat / move / recover steps)
 - A tested TypeScript port of the app's expiring, safety-first memory rules, behind a swappable store
+- A Firestore store (`STORE=firestore`) that reads and writes the live DayZer0 app's data in the app's own document shapes, so a voice-logged meal or weigh-in is picked up by the app's existing triggers and shows up in the app. Reachable accounts are limited to an allowlist, a real project needs an explicit opt-in, and it is tested with a fake Firestore and in the Firebase emulator running the app's own `onMealWritten` / `onWeightLogWritten` triggers. The app's code was not changed for this
 - An allergy / diet safety check on meal logging, with a controllable clock for demonstrating expiry
 - Contract tests that drive the server with the real MCP client, and a recorded wire trace (regenerated with `npm run trace:update`)
 - A demo page that acts as a real MCP client: live wire trace, cards, voice, a New-conversation proof and a time-advance control, with a replay mode and an optional live Gemini brain
 
 **Before:** Daizee lived only inside one Android app, and you had to type.
-**After:** the same kind of memory is a service any MCP assistant can call, so it survives a fresh conversation.
+**After:** the same kind of memory is a service any MCP assistant can call, so it survives a fresh conversation, and with the Firestore store a meal said to the assistant lands in the DayZer0 app itself.
 
 ## Not claimed
 

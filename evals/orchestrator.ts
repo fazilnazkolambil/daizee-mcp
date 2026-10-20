@@ -97,6 +97,13 @@ const CASES: Case[] = [
     ],
   },
   {
+    id: "today-focus", user: "maya", freshConversation: true, say: ["What should I focus on today?"],
+    checks: [
+      { label: "get_today_plan", ok: (c) => used(c, "get_today_plan").length > 0 },
+      { label: "no data-changing tool called", ok: (c) => !c.some((x) => mutating.has(x.name)) },
+    ],
+  },
+  {
     id: "out-of-scope", user: "maya", freshConversation: true, say: ["Can you tell me a joke about cats?"],
     checks: [{ label: "no data-changing tool called", ok: (c) => !c.some((x) => mutating.has(x.name)) }],
   },

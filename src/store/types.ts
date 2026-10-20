@@ -49,6 +49,18 @@ export interface WeightLog {
 }
 
 /**
+ * Today's plan, as the DayZer0 app shows it (daily doc `todays_mission`, plus
+ * the optional afternoon nudge). Written by the app's own backend, never here.
+ */
+export interface TodayPlan {
+  dayKey: string;
+  focus: { title: string; why: string } | null;
+  plan: { eat: string; move: string; recover: string } | null;
+  summary: string;
+  afternoon: { headline: string; body: string } | null;
+}
+
+/**
  * Where data lives. Every method is scoped to one user, so the rest of the
  * code can never read or write across people by accident.
  */
@@ -66,6 +78,9 @@ export interface Store {
   /** One weigh-in per day: a second one the same day replaces the first. */
   upsertWeight(log: WeightLog): Promise<{ log: WeightLog; replaced: boolean }>;
   recentWeights(userId: string, limit: number): Promise<WeightLog[]>;
+
+  /** Today's plan for this user, or null when none has been made yet. Read only. */
+  getTodayPlan(userId: string, dayKey: string): Promise<TodayPlan | null>;
 
   /** Put the demo data back to its starting point. */
   reset(): Promise<void>;

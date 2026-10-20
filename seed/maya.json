@@ -33,5 +33,15 @@
     { "daysAgo": 14, "kg": 62.4 },
     { "daysAgo": 7, "kg": 62.0 },
     { "daysAgo": 1, "kg": 61.8 }
-  ]
+  ],
+  "todayPlan": {
+    "focus": { "title": "Protein at every meal", "why": "You were 30 grams short on protein the last two days." },
+    "plan": {
+      "eat": "Add paneer or dal to lunch and dinner.",
+      "move": "Keep the after-dinner walk easy on your knee.",
+      "recover": "Lights out by 11 tonight."
+    },
+    "summary": "A steady day. Lean on protein and go gently on the sore knee.",
+    "afternoon": { "headline": "Lunch logged yet?", "body": "A quick photo or a sentence keeps today's numbers honest." }
+  }
 }

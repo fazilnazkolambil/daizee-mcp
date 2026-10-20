@@ -21,10 +21,12 @@
     "deploy": "firebase deploy --only functions,hosting --project daizee-mcp-demo --account fazilnazkolambil@gmail.com",
     "trace:update": "WRITE_WIRE_TRACE=1 vitest run tests/contract.test.ts",
     "typecheck:functions": "tsc -p functions/tsconfig.json --noEmit",
-    "check": "npm run typecheck && npm run typecheck:functions && npm test"
+    "check": "npm run typecheck && npm run typecheck:functions && npm test",
+    "test:emulator": "node scripts/emulator-test.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.1",
+    "firebase-admin": "^13.10.0",
     "zod": "^4.0.0"
   },
   "devDependencies": {

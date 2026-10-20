@@ -621,6 +621,8 @@ async function main(): Promise<void> {
       getJson<{ configured: boolean; model: string | null }>("/brain/status").catch(() => ({ configured: false, model: null })),
     ]);
     users = u.users;
+    // Connected to the real app the users are the allowlisted ones (for example "demo"), not maya.
+    if (users.length && !users.some((x) => x.id === userId)) userId = users[0]?.id ?? userId;
     brainModel = brain.model;
     brainConfigured = brain.configured;
     mode = brain.configured ? "live" : "replay";

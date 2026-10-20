@@ -17,6 +17,8 @@ export interface AppOptions {
   demo: boolean;
   /** Extra browser origins allowed to call the server (localhost is always allowed). */
   allowedOrigins?: readonly string[];
+  /** Real app data: the demo's time travel and reset are refused. */
+  liveData?: boolean;
   /** The user a request acts as when it names none. */
   defaultUser?: string;
   /**
@@ -138,7 +140,7 @@ export function createApp(opts: AppOptions): Handler {
 
     try {
       if (url.pathname === "/health" && method === "GET") {
-        sendJson(res, 200, { ok: true, name: "daizee-mcp", demo: opts.demo });
+        sendJson(res, 200, { ok: true, name: "daizee-mcp", demo: opts.demo, liveData: Boolean(opts.liveData) });
         return;
       }
 
@@ -265,6 +267,10 @@ async function handleDemo(
   }
   if (pathname === "/demo/clock" && method === "GET") {
     sendJson(res, 200, clockState());
+    return;
+  }
+  if (opts.liveData && (pathname === "/demo/advance-clock" || pathname === "/demo/reset")) {
+    sendJson(res, 409, { error: "live_data", message: "Time travel and reset are off while connected to the real app." });
     return;
   }
   if (pathname === "/demo/advance-clock" && method === "POST") {

@@ -4,22 +4,33 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { brainFromEnv, type Brain } from "../brain/gemini.js";
 import { ManualClock } from "../memory/index.js";
-import { InMemoryStore } from "../store/index.js";
+import { firestoreStoreFromEnv, InMemoryStore, type Store } from "../store/index.js";
 import { loadSeedData } from "./data.js";
 import { createApp } from "./http.js";
 import { DaizeeService } from "./service.js";
 
 /** Wires everything together. Used by `npm start` and by the tests. */
-export function buildApp(options: { demo?: boolean; allowedOrigins?: string[]; brain?: Brain | null; staticDir?: string } = {}) {
+export function buildApp(
+  options: {
+    demo?: boolean;
+    allowedOrigins?: string[];
+    brain?: Brain | null;
+    staticDir?: string;
+    /** Real app data (FirestoreStore). Turns off the demo's time travel and reset. */
+    live?: { store: Store; clock: ManualClock; defaultUser: string };
+  } = {},
+) {
   const data = loadSeedData();
-  const clock = new ManualClock();
-  const store = new InMemoryStore(data.users, clock);
+  const clock = options.live?.clock ?? new ManualClock();
+  const store = options.live?.store ?? new InMemoryStore(data.users, clock);
   const service = new DaizeeService(store, clock, data.dishes, data.rules);
   const handler = createApp({
     service,
     store,
     clock,
     demo: options.demo ?? false,
+    liveData: Boolean(options.live),
+    defaultUser: options.live?.defaultUser,
     allowedOrigins: options.allowedOrigins,
     brain: options.brain ?? null,
     staticDir: options.staticDir,
@@ -32,7 +43,7 @@ export function buildApp(options: { demo?: boolean; allowedOrigins?: string[]; b
   return { handler, service, store, clock };
 }
 
-function main(): void {
+async function main(): Promise<void> {
   // Optional local settings (never committed). A missing file is fine.
   try {
     process.loadEnvFile(".env");
@@ -45,11 +56,22 @@ function main(): void {
   const brain = demo ? brainFromEnv() : null;
   const dist = resolve(dirname(fileURLToPath(import.meta.url)), "../../simulator/dist");
   const staticDir = existsSync(dist) ? dist : undefined;
-  const { handler } = buildApp({ demo, allowedOrigins: origins, brain, staticDir });
+
+  // STORE=firestore connects to the real DayZer0 app; the default is fictional in-memory data.
+  let live: { store: Store; clock: ManualClock; defaultUser: string } | undefined;
+  let usersLine = "Demo users: maya (has history), sam (blank). Send header x-daizee-user to choose.";
+  if (process.env.STORE === "firestore") {
+    const clock = new ManualClock();
+    const { store, settings } = await firestoreStoreFromEnv(process.env, clock);
+    const names = [...settings.users.keys()];
+    live = { store, clock, defaultUser: names[0] as string };
+    usersLine = `Connected to the DayZer0 app: project ${settings.projectId}${settings.emulator ? " (EMULATOR)" : " (LIVE DATA)"}, users: ${names.join(", ")}. Demo time travel and reset are off.`;
+  }
+  const { handler } = buildApp({ demo, allowedOrigins: origins, brain, staticDir, live });
 
   createServer((req, res) => void handler(req, res)).listen(port, () => {
     console.log(`daizee-mcp listening on http://localhost:${port}/mcp  (demo controls ${demo ? "ON" : "off"})`);
-    console.log("Demo users: maya (has history), sam (blank). Send header x-daizee-user to choose.");
+    console.log(usersLine);
     console.log(brain ? `Assistant brain: Gemini (${brain.model})` : "Assistant brain: not configured (replay mode only)");
     console.log(staticDir ? `Demo page: http://localhost:${port}/` : "Demo page: not built yet (run npm run build:sim)");
   });
@@ -57,5 +79,8 @@ function main(): void {
 
 // Run only when started directly, not when imported by tests.
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
-  main();
+  main().catch((err: unknown) => {
+    console.error(err instanceof Error ? err.message : err);
+    process.exit(1);
+  });
 }

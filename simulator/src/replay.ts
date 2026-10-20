@@ -40,6 +40,12 @@ export const SCENES: Scene[] = [
     calls: [{ name: "get_day_progress", args: {} }],
   },
   {
+    id: "focus",
+    say: "What should I focus on today?",
+    match: /focus on today|today'?s plan|what'?s my plan/i,
+    calls: [{ name: "get_today_plan", args: {} }],
+  },
+  {
     id: "know",
     say: "What do you know about me?",
     match: /what do you (know|remember)|remember about me/i,

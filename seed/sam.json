@@ -6,5 +6,14 @@
   "targets": { "calories": 2100, "protein": 120, "carbs": 240, "fat": 65 },
   "memories": [],
   "meals": [],
-  "weights": []
+  "weights": [],
+  "todayPlan": {
+    "focus": { "title": "Log every meal today", "why": "A full day of logs gives Daizee something real to coach from." },
+    "plan": {
+      "eat": "Log breakfast, lunch and dinner as you go.",
+      "move": "Take a ten minute walk after lunch.",
+      "recover": "Drink a glass of water with each meal."
+    },
+    "summary": "Day one. Keep it simple and just log what you eat."
+  }
 }

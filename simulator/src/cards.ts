@@ -95,6 +95,13 @@ export function cardsFor(tool: string, out: Record<string, unknown> | undefined)
     for (const c of (out.checkIns as CheckIn[]) ?? []) cards.push(banner("info", "Check-in", c.question));
   }
 
+  if (tool === "get_today_plan" && out.hasPlan) {
+    const focus = out.focus as { title: string } | null;
+    const plan = out.plan as { eat: string; move: string; recover: string } | null;
+    const steps = plan ? [`Eat: ${plan.eat}`, `Move: ${plan.move}`, `Recover: ${plan.recover}`].join("  ·  ") : String(out.summary ?? "");
+    cards.push(banner("info", focus ? `Today's focus: ${focus.title}` : "Today's plan", steps));
+  }
+
   if (tool === "log_meal") {
     for (const f of (out.safetyFlags as Flag[]) ?? []) {
       cards.push(banner("warn", `Heads up: ${f.reason}`, `Your note says "${f.memoryText}". This is only a reminder, not medical advice.`));

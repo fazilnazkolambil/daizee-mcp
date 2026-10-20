@@ -155,11 +155,12 @@ describe("transport rules", () => {
 });
 
 describe("tools over real MCP", () => {
-  it("lists exactly the six tools, each with a description, schema and annotations", async () => {
+  it("lists exactly the seven tools, each with a description, schema and annotations", async () => {
     const client = await connect();
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
       "get_day_progress",
+      "get_today_plan",
       "log_meal",
       "log_weight",
       "recall_what_you_know",

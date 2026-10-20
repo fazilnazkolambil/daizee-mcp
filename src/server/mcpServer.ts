@@ -12,7 +12,8 @@ export function createMcpServer(params: { service: DaizeeService; userId: string
   const server = new McpServer(SERVER_INFO, {
     instructions:
       "Daizee keeps a person's health notes (allergies, injuries, habits) and meal log, and remembers them across conversations. " +
-      "Notes expire on purpose. Call recall_what_you_know before advising on food, and log_meal for anything the user ate.",
+      "Notes expire on purpose. Call recall_what_you_know before advising on food, log_meal for anything the user ate, " +
+      "and get_today_plan when the user asks what to focus on today.",
   });
   registerTools(server, params.service, params.userId);
 

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { DAY_MS, type Clock, type Memory, type OpsPlan } from "../memory/index.js";
 import { dayKeyFor } from "./dayKey.js";
-import type { Meal, MealItem, MealType, Profile, Store, WeightLog } from "./types.js";
+import type { Meal, MealItem, MealType, Profile, Store, TodayPlan, WeightLog } from "./types.js";
 
 /** The shape of seed/*.json. Times are relative so the demo is always "now". */
 export interface SeedUser {
@@ -21,6 +21,8 @@ export interface SeedUser {
     items: Array<Omit<MealItem, "estimated"> & { estimated?: boolean }>;
   }>;
   weights: Array<{ daysAgo: number; kg: number }>;
+  /** Stands in for the plan the app's midnight job writes each day. */
+  todayPlan?: Omit<TodayPlan, "dayKey" | "afternoon"> & { afternoon?: TodayPlan["afternoon"] };
 }
 
 interface UserData {
@@ -158,6 +160,14 @@ export class InMemoryStore implements Store {
     return [...this.user(userId).weights.values()]
       .sort((a, b) => b.loggedAtMs - a.loggedAtMs)
       .slice(0, limit);
+  }
+
+  async getTodayPlan(userId: string, dayKey: string): Promise<TodayPlan | null> {
+    const seed = this.seeds.find((s) => s.id === userId);
+    if (!seed) throw new Error(`Unknown user: ${userId}`);
+    // The seeded plan plays the role of "the plan made at midnight", so every day has one.
+    const plan = seed.todayPlan;
+    return plan ? { dayKey, ...structuredClone(plan), afternoon: plan.afternoon ?? null } : null;
   }
 
   async reset(): Promise<void> {
