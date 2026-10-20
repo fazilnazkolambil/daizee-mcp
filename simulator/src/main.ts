@@ -130,6 +130,7 @@ function buildPage(): void {
         el("div", { class: "popwrap" }, [gearBtn, popover]),
       ]),
       el("main", { class: "stage" }, [
+        side.root,
         el("section", { class: "glass chat", attrs: { "aria-label": "Assistant" } }, [
           el("div", { class: "chat-head" }, [modePill, historyPill]),
           transcript,
@@ -137,7 +138,6 @@ function buildPage(): void {
           composer,
           fine,
         ]),
-        side.root,
         trace,
       ]),
     ]),

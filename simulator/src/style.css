@@ -76,15 +76,18 @@ body.trace-hidden .app { max-width: 1120px; }
 @media (max-width: 760px) { .ghost .t { display: none; } .bar-group .lbl { display: none; } }
 
 /* ── layout ──────────────────────────────────────────────────────────── */
-/* Wide: chat | cards | behind the scenes. Medium: chat | cards, trace full width below. Narrow: stacked. */
-.stage { display: grid; grid-template-columns: minmax(0, 1fr) 300px minmax(340px, 400px); gap: 16px; flex: 1; min-height: 0; align-items: start; }
-body.trace-hidden .stage { grid-template-columns: minmax(0, 1fr) 320px; }
+/* Wide: cards | chat | behind the scenes. Medium: cards | chat, trace full width below. Narrow: chat first, then cards, then trace. */
+.stage { display: grid; grid-template-columns: 300px minmax(0, 1fr) minmax(340px, 400px); gap: 16px; flex: 1; min-height: 0; align-items: start; }
+body.trace-hidden .stage { grid-template-columns: 320px minmax(0, 1fr); }
 body.trace-hidden .trace { display: none; }
 @media (max-width: 1279px) {
-  .stage { grid-template-columns: minmax(0, 1fr) 300px; }
+  .stage { grid-template-columns: 300px minmax(0, 1fr); }
   .trace { grid-column: 1 / -1; }
 }
-@media (max-width: 980px) { .stage, body.trace-hidden .stage { grid-template-columns: 1fr; } }
+@media (max-width: 980px) {
+  .stage, body.trace-hidden .stage { grid-template-columns: 1fr; }
+  .chat { order: -1; } /* on a phone the assistant comes first */
+}
 .side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 16px; }
 @media (max-width: 980px) { .side { position: static; } }
 

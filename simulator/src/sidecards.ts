@@ -2,7 +2,7 @@ import { dayCard, memoryRow, type MemoryView, type Macros } from "./cards.js";
 import { el, growBars } from "./dom.js";
 
 /**
- * The two always-visible glass cards: "What Daizee remembers" and "Today".
+ * The two always-visible glass cards: "Today" and "What Daizee remembers".
  * They are drawn only from real tool results (recall_what_you_know and
  * get_day_progress); nothing here is invented.
  */
@@ -14,8 +14,8 @@ export class SideCards {
 
   constructor() {
     this.root = el("aside", { class: "side", attrs: { "aria-label": "Daizee's memory and today" } }, [
-      el("section", { class: "glass card" }, [el("h2", {}, [el("span", { text: "What Daizee remembers" }), this.memNote]), this.memBody]),
       el("section", { class: "glass card" }, [el("h2", {}, [el("span", { text: "Today" })]), this.dayBody]),
+      el("section", { class: "glass card" }, [el("h2", {}, [el("span", { text: "What Daizee remembers" }), this.memNote]), this.memBody]),
     ]);
     this.setMemories(null);
     this.setDay(null);
@@ -34,7 +34,7 @@ export class SideCards {
       return;
     }
     for (const m of memories) this.memBody.appendChild(memoryRow(m));
-    this.memNote.textContent = memories.length >= 10 ? "top 10, allergies first" : "allergies first";
+    this.memNote.textContent = memories.length >= 10 ? "top 10" : "";
     growBars(this.memBody);
   }
 
