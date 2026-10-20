@@ -6,9 +6,10 @@ Tell any voice assistant once that you're allergic to peanuts, and meals you log
 
 > **How far the meal check goes:** it matches words against a built-in list of common allergens and diets (peanuts, tree nuts, dairy, eggs, gluten, shellfish, fish, soy, sesame, vegetarian, vegan, pork, beef). It can miss things, so an empty result is not a clearance. When you save an allergy or diet the list doesn't cover, the service says so out loud instead of staying quiet. It is a reminder, never medical advice.
 
-`daizee-mcp` is an [MCP](https://modelcontextprotocol.io) server (Model Context Protocol, the standard way an AI assistant calls outside tools). It is built for the Amazon Developer Hackathon, Alexa+ track, and it exposes the memory and meal-logging ideas from DayZer0, a live Android AI health-coach app.
+`daizee-mcp` is a **self-hosted [MCP](https://modelcontextprotocol.io) server** (Model Context Protocol, the open standard behind Alexa+ integrations) built for the Amazon Developer Hackathon, Alexa+ track. It makes Daizee, the AI coach in **DayZer0**, a live Android health-coach app, voice-controllable: say a meal, an allergy or a weigh-in to the assistant, and it lands in the same Firestore the app uses, so the app updates on its own.
 
-> **Honest status:** this is a *simulated* Alexa+-style integration. Amazon's real Alexa+ add-on tooling is limited to select partners, so nothing here has been tested on a real Alexa device and nothing is Alexa-certified. The server follows Amazon's public design guidance, and a demo page acts as a real MCP client to show it working.
+- **Real:** the MCP server (official SDK, Streamable HTTP, spec `2025-11-25`), seven voice-shaped tools, the memory and safety rules, the connection to the real DayZer0 app's data, and per-user Firebase sign-in tokens on `/mcp`.
+- **Simulated:** the Alexa+ side. Amazon's Alexa+ add-on tooling is limited to select partners, so nothing here has run on a real Alexa device and nothing is Alexa-certified. A demo page acts as a real MCP client in its place, following Amazon's public design guidance.
 
 ## Quick start (no accounts, no keys)
 
@@ -56,7 +57,7 @@ A generic "voice assistant" screen (no Amazon or Echo logos) that is a **real MC
 - **voice in:** the page records the microphone, converts it to a 16 kHz mono WAV in the browser, and POSTs it to `/brain/transcribe`, where Gemini transcribes it (this replaces the browser's own Web Speech recognition, which needs Google's servers and fails on some networks). Near-silent recordings are caught by a silence gate before any model call, because the model invents text for silent audio; steady background noise can still make it invent words, so the page always shows what it heard before acting. The transcription prompt includes the service's own vocabulary (dish names, allergy terms) to help with words like "pad thai". Typed input always works.
 - **voice out:** the browser's own speech synthesis (the "Speak replies" switch in Settings).
 
-**Two assistant modes.** *Replay* (default, no keys): scripted "which tool should I call" decisions, real calls, and the real service's replies. *Live*: Gemini decides which tool to call. To enable it, copy `.env.example` to `.env` and set `GEMINI_API_KEY` (the file is git-ignored). The key stays on the server, and the browser never sees it. The live brain lives in `src/brain/` and is **separate from the MCP server**, which still contains no language model.
+**Two assistant modes.** *Replay* (default, no keys): scripted "which tool should I call" decisions, real calls, and the real service's replies. *Live*: Gemini decides which tool to call. The key lives in **Google Secret Manager**, not in a file: put the secret `GEMINI_API_KEY` in a project you can read, run `gcloud auth application-default login` once, and set `DAIZEE_SECRETS_PROJECT=<that project>` in `.env` (git-ignored, settings only). The server reads it at startup ([`src/server/secrets.ts`](src/server/secrets.ts)); a `GEMINI_API_KEY` already in the environment wins, which CI and the hosted function use. The key stays on the server, and the browser never sees it. The live brain lives in `src/brain/` and is **separate from the MCP server**, which still contains no language model.
 
 The default model is `gemini-3.1-flash-lite` (older ids such as `gemini-2.5-flash` are retired for new keys). Free Gemini keys allow about 15 requests a minute, so the brain waits out short limits and retries once.
 
@@ -104,7 +105,7 @@ The server negotiates MCP protocol versions `2025-11-25` and `2025-03-26` (Amazo
 | Alexa+ itself | **Simulated.** No real Alexa device or Amazon tooling used |
 | Account linking | **Real token check, simulated linking flow.** Connected to the app, `/mcp` needs a Firebase ID token from DayZer0 sign-in (verified with firebase-admin) and serves RFC 9728 metadata naming the project's token issuer. There is no OAuth authorization server here, so the Alexa+ consent screen is not built; you get a token yourself (see below). The in-memory demo uses a header to pick a fictional user |
 | Demo page with live wire trace, cards, voice, replay mode | **Real**, a simulation of the assistant side |
-| Live Gemini brain | **Optional**, needs your own key |
+| Live Gemini brain | **Optional**, needs your own key (read from Google Secret Manager) |
 
 ## Connected to the DayZer0 app
 
@@ -145,13 +146,13 @@ That run checks that the trigger rebuilt today's totals and posted the meal card
 **Run it against the real app** (for example, for a demo recording):
 
 1. Use a **demo account** in the app (not a personal one): sign in on the phone, finish onboarding so it has calorie targets, and copy its uid from Firebase console > Authentication.
-2. Create a service account key with the *Cloud Datastore User* role (Google Cloud console > IAM > Service accounts > Keys), save it outside the repo.
-3. Put this in `.env` (git-ignored):
+2. Sign in with your own Google account instead of a key file: `gcloud auth application-default login`. That account needs Firestore access (*Cloud Datastore User*) on the app's project. No service account key is downloaded.
+3. Put these settings in `.env` (git-ignored; no secrets in it):
 
    ```bash
    STORE=firestore
    FIREBASE_PROJECT_ID=<the app's Firebase project id>
-   GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json
+   DAIZEE_SECRETS_PROJECT=daizee-mcp-demo
    DAIZEE_ALLOWED_UIDS=demo=<the demo account's uid>
    DAIZEE_ALLOW_LIVE_FIRESTORE=1
    ```

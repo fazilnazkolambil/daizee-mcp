@@ -8,6 +8,7 @@ import { firebaseAuthFromEnv, firestoreStoreFromEnv, InMemoryStore, type Store }
 import { loadSeedData } from "./data.js";
 import type { AuthConfig } from "./auth.js";
 import { createApp } from "./http.js";
+import { loadSecrets } from "./secrets.js";
 import { DaizeeService } from "./service.js";
 
 /** Wires everything together. Used by `npm start` and by the tests. */
@@ -54,6 +55,9 @@ async function main(): Promise<void> {
   } catch {
     /* no .env: zero-configuration mode */
   }
+  // Secrets (the Gemini key) come from Secret Manager when DAIZEE_SECRETS_PROJECT is set.
+  const loadedSecrets = await loadSecrets(process.env);
+  if (loadedSecrets.length) console.log(`Secrets from Secret Manager (${process.env.DAIZEE_SECRETS_PROJECT}): ${loadedSecrets.join(", ")}`);
   const port = Number(process.env.PORT ?? 8787);
   const demo = process.env.DAIZEE_DEMO !== "0"; // on by default for the local demo
   const origins = (process.env.DAIZEE_ALLOWED_ORIGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
