@@ -75,6 +75,14 @@ const CASES: Case[] = [
     ],
   },
   {
+    id: "dinner-advice", user: "maya", freshConversation: true, say: ["What can I eat for dinner?"],
+    checks: [
+      { label: "recall_what_you_know before advice", ok: (c) => used(c, "recall_what_you_know").length > 0 },
+      { label: "answers the question, not just the memory list", ok: (_c, r) => r.trim() !== "" && !/^i know \d+ things/i.test(r.trim()) },
+      { label: "no peanut suggestion", ok: (_c, r) => !/\bpeanut/i.test(r) || /avoid|allerg|without|no peanut/i.test(r) },
+    ],
+  },
+  {
     id: "pad-thai-flag", user: "sam", freshConversation: true, say: ["Log pad thai for dinner."],
     checks: [
       { label: "log_meal as dinner", ok: (c) => used(c, "log_meal").some((x) => x.args.mealType === "dinner") },

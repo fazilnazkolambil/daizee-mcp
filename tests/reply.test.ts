@@ -15,11 +15,17 @@ describe("replyFromResults / canReplyFast (fast replies)", () => {
   it("joins several sentences when asked to", () => {
     expect(replyFromResults([{ output: { spoken: "One." } }, { output: { spoken: "Two." } }])).toBe("One. Two.");
   });
-  it("is fast only for exactly one tool that said something", () => {
-    expect(canReplyFast([{ output: { spoken: "Hi." } }])).toBe(true);
-    expect(canReplyFast([{ output: { spoken: "Hi." } }, { output: { spoken: "Again." } }])).toBe(false);
-    expect(canReplyFast([{ output: {} }])).toBe(false);
+  it("is fast only for exactly one action tool that said something", () => {
+    expect(canReplyFast([{ name: "log_meal", output: { spoken: "Logged." } }])).toBe(true);
+    expect(canReplyFast([{ name: "log_meal", output: { spoken: "Hi." } }, { name: "log_weight", output: { spoken: "Again." } }])).toBe(false);
+    expect(canReplyFast([{ name: "log_meal", output: {} }])).toBe(false);
+    expect(canReplyFast([{ output: { spoken: "No name." } }])).toBe(false);
     expect(canReplyFast([])).toBe(false);
+  });
+  it("lets the model answer after a lookup ('what can I eat for dinner?' recalls first)", () => {
+    for (const name of ["recall_what_you_know", "get_day_progress", "get_today_plan"]) {
+      expect(canReplyFast([{ name, output: { spoken: "I know 5 things." } }])).toBe(false);
+    }
   });
 });
 

@@ -5,16 +5,17 @@ Nothing in this file is hand-written: rerun the command to reproduce it.
 
 - Model: `gemini-3.1-flash-lite`
 - Replies: **fast (the tool's own sentence when one tool ran)**
-- Spoken turns: 15; average **11.11 s per turn** (model + tool time) with **1.00 model calls per turn**
-- Cases passed: **14 / 14**
-- Model calls: 15 (p50 1561 ms, p95 48244 ms)
-- Tokens: 21074 in, 356 out (1405 in and 24 out per call on average)
+- Spoken turns: 16; average **13.81 s per turn** (model + tool time) with **1.25 model calls per turn**
+- Cases passed: **15 / 15**
+- Model calls: 20 (p50 5633 ms, p95 47713 ms)
+- Tokens: 29049 in, 483 out (1452 in and 24 out per call on average)
 
 | Case | Result | Tools called | Failed checks |
 |---|---|---|---|
 | teach-allergy | pass | remember_about_user |  |
 | teach-knee | pass | remember_about_user |  |
 | kerala-trip | pass | remember_about_user |  |
+| dinner-advice | pass | recall_what_you_know |  |
 | pad-thai-flag | pass | log_meal |  |
 | breakfast | pass | log_meal |  |
 | progress | pass | get_day_progress |  |
