@@ -72,10 +72,15 @@ const actionBtn = el("button", { class: "action", attrs: { type: "button", "data
 const composer = el("form", { class: "composer", attrs: { autocomplete: "off" } }, [input, level, actionBtn]);
 const fine = el("p", { class: "fineprint", text: "Demo data is fictional. What you say or type is processed by Gemini and shared with other visitors of this demo, so please don't enter real health details." });
 
-const traceList = el("div", { class: "trace-list" });
-const budgetPill = el("span", { class: "pill", text: "no calls yet" });
-const drawer = el("aside", { class: "glass drawer", attrs: { "aria-label": "Behind the scenes", "aria-hidden": "true" } });
-const traceBtn = el("button", { class: "ghost", attrs: { type: "button", "aria-expanded": "false", "aria-controls": "drawer", "aria-label": "Behind the scenes: show the real MCP messages" } }, [icon("code"), el("span", { class: "t", text: "Behind the scenes" })]);
+const traceList = el("div", { class: "trace-list", attrs: { "aria-live": "polite", "aria-relevant": "additions" } });
+const traceEmpty = el("div", { class: "trace-empty", text: "No messages yet. Say something and every MCP message the assistant sends shows up here." });
+const budgetPill = el("span", { class: "pill", text: "no tool calls yet" });
+const statCalls = el("b", { text: "0" });
+const statAvg = el("b", { text: "–" });
+const onlyAssistant = el("input", { class: "switch", attrs: { type: "checkbox", "aria-label": "Show only the assistant's calls" } });
+const trace = el("section", { class: "glass trace", attrs: { id: "trace", "aria-label": "Behind the scenes" } });
+const traceBtn = el("button", { class: "ghost", attrs: { type: "button", "aria-expanded": "true", "aria-controls": "trace", "aria-label": "Behind the scenes: show or hide the real MCP messages" } }, [icon("code"), el("span", { class: "t", text: "Behind the scenes" })]);
+const toolServerMs: number[] = [];
 const newConvoBtn = el("button", { class: "ghost", attrs: { type: "button", "aria-label": "New conversation: the assistant forgets, the service remembers" } }, [icon("compose"), el("span", { class: "t", text: "New conversation" })]);
 const gearBtn = el("button", { class: "ghost", attrs: { type: "button", "aria-expanded": "false", "aria-haspopup": "true", "aria-label": "Demo settings" } }, [icon("gear"), el("span", { class: "t", text: "Settings" })]);
 const popover = el("div", { class: "glass popover", attrs: { hidden: "", role: "dialog", "aria-label": "Demo settings" } });
@@ -87,19 +92,28 @@ const advanceBtns = [1, 3, 6].map((d) => {
 
 // ── layout ─────────────────────────────────────────────────────────────────
 function buildPage(): void {
-  drawer.id = "drawer";
-  drawer.append(
-    el("div", { class: "drawer-head" }, [
-      el("div", {}, [el("h2", { text: "Behind the scenes" }), el("p", { text: "Real MCP over Streamable HTTP. Click a row to see the JSON." })]),
+  trace.append(
+    el("div", { class: "trace-head" }, [
+      el("div", {}, [
+        el("h2", {}, [icon("code"), document.createTextNode("Behind the scenes")]),
+        el("p", { text: "Real MCP over Streamable HTTP. Open a row to see the JSON." }),
+      ]),
       (() => {
-        const close = el("button", { class: "ghost", attrs: { type: "button", "aria-label": "Close" } }, [icon("close")]);
-        close.addEventListener("click", () => toggleDrawer(false));
-        return close;
+        const hide = el("button", { class: "ghost icon-only", attrs: { type: "button", "aria-label": "Hide behind the scenes" } }, [icon("close")]);
+        hide.addEventListener("click", () => toggleTrace(false));
+        return hide;
       })(),
     ]),
-    el("div", { class: "budget" }, [document.createTextNode("Server time vs the 500 ms target in Amazon's published add-on guidance"), budgetPill]),
+    el("div", { class: "trace-stats" }, [
+      el("div", { class: "stat" }, [statCalls, el("small", { text: "tool calls" })]),
+      el("div", { class: "stat" }, [statAvg, el("small", { text: "avg server time" })]),
+      el("div", { class: "stat budget", attrs: { title: "Server time of the last tool call vs the 500 ms target in Amazon's published add-on guidance" } }, [budgetPill, el("small", { text: "500 ms target" })]),
+    ]),
+    el("label", { class: "trace-filter" }, [el("span", { text: "Assistant calls only" }), onlyAssistant]),
+    traceEmpty,
     traceList,
   );
+  onlyAssistant.addEventListener("change", () => traceList.classList.toggle("only-assistant", onlyAssistant.checked));
 
   const app = document.getElementById("app");
   if (!app) return;
@@ -124,9 +138,9 @@ function buildPage(): void {
           fine,
         ]),
         side.root,
+        trace,
       ]),
     ]),
-    drawer,
   );
   transcript.appendChild(hero);
 }
@@ -207,38 +221,52 @@ function setBusy(value: boolean): void {
 // ── trace drawer ───────────────────────────────────────────────────────────
 function addTrace(entry: TraceEntry): void {
   const stream = entry.httpMethod === "GET";
-  const label = stream ? "GET /mcp (no stream: stateless server)" : entry.method + (entry.tool ? ` · ${entry.tool}` : "");
   const ok = entry.status >= 200 && entry.status < 300;
-  const item = el("details", { class: `trace-item${stream || entry.tag ? " dim" : ""}` }, [
+  const kind = stream ? "stream" : entry.method === "tools/call" ? "call" : entry.method === "tools/list" ? "list" : "init";
+  const background = stream || Boolean(entry.tag);
+  const item = el("details", { class: `trace-item k-${kind}${background ? " background" : ""}` }, [
     el("summary", {}, [
-      el("span", { text: `#${entry.id}` }),
-      el("span", { text: label }),
-      el("span", { class: ok ? "ok" : "bad-text", text: String(entry.status) }),
-      el("span", { text: `${entry.roundTripMs.toFixed(0)} ms` }),
-      entry.serverMs !== null ? el("span", { text: `server ${entry.serverMs.toFixed(1)} ms` }) : null,
-      entry.tag ? el("span", { class: "tag", text: entry.tag }) : null,
+      el("span", { class: "t-method", text: stream ? "GET /mcp" : entry.method }),
+      el("span", { class: "t-name", text: stream ? "no stream (stateless)" : entry.tool ?? "" }),
+      // The 405 on GET is expected (a stateless server offers no stream), so it is not shown as an error.
+      el("span", { class: `t-status ${ok ? "ok" : stream ? "muted" : "bad-text"}`, attrs: { title: stream ? `HTTP ${entry.status}: expected, no stream to open` : `HTTP ${entry.status}` } }, [el("i"), document.createTextNode(String(entry.status))]),
+      el("span", { class: "t-ms", text: `${entry.roundTripMs.toFixed(0)} ms` }),
+      el("span", { class: "t-meta" }, [
+        el("span", { text: `#${entry.id}` }),
+        entry.serverMs !== null ? el("span", { text: `server ${entry.serverMs.toFixed(1)} ms` }) : null,
+        entry.tag ? el("span", { class: "tag", text: entry.tag === "panel" ? "page refresh" : entry.tag }) : null,
+      ]),
     ]),
     el("pre", {}, [el("b", { text: "Request" }), document.createTextNode(JSON.stringify(entry.request, null, 2) ?? "(none)")]),
     el("pre", {}, [el("b", { text: "Response" }), document.createTextNode(JSON.stringify(entry.response, null, 2) ?? "(none)")]),
   ]);
   traceList.prepend(item);
+  traceEmpty.hidden = true;
 
   if (entry.method === "tools/call" && entry.serverMs !== null) {
+    toolServerMs.push(entry.serverMs);
+    statCalls.textContent = String(toolServerMs.length);
+    statAvg.textContent = `${(toolServerMs.reduce((a, b) => a + b, 0) / toolServerMs.length).toFixed(1)} ms`;
     const good = entry.serverMs < BUDGET_MS;
-    budgetPill.textContent = `${entry.serverMs.toFixed(1)} ms · ${good ? "within budget" : "over budget"}`;
+    budgetPill.textContent = `${entry.serverMs.toFixed(1)} ms ${good ? "✓" : "· over"}`;
+    budgetPill.title = `Last tool call: ${entry.serverMs.toFixed(1)} ms of server time, ${good ? "within" : "over"} the 500 ms target`;
     budgetPill.className = `pill ${good ? "good" : "bad"}`;
   }
 }
-function toggleDrawer(open: boolean): void {
-  drawer.classList.toggle("open", open);
-  drawer.setAttribute("aria-hidden", String(!open));
-  document.body.classList.toggle("trace-open", open);
-  traceBtn.setAttribute("aria-expanded", String(open));
-  // When the drawer covers the page (narrow screens), the page behind must not take focus.
-  const overlay = window.matchMedia("(max-width: 900px)").matches;
-  (document.querySelector(".app") as (HTMLElement & { inert: boolean }) | null)?.toggleAttribute("inert", open && overlay);
-  if (open) (drawer.querySelector("button") as HTMLElement | null)?.focus();
-  else traceBtn.focus();
+const TRACE_PREF = "daizee.trace.hidden";
+function toggleTrace(show: boolean, focus = true): void {
+  document.body.classList.toggle("trace-hidden", !show);
+  traceBtn.setAttribute("aria-expanded", String(show));
+  try {
+    localStorage.setItem(TRACE_PREF, show ? "0" : "1");
+  } catch {
+    /* storage blocked: the choice just isn't remembered */
+  }
+  if (!focus) return;
+  if (show) {
+    trace.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    (trace.querySelector("button") as HTMLElement | null)?.focus({ preventScroll: true });
+  } else traceBtn.focus();
 }
 
 // ── settings popover ───────────────────────────────────────────────────────
@@ -628,7 +656,14 @@ async function main(): Promise<void> {
     else if (m === "mic" || m === "stop") void toggleMic();
   });
   newConvoBtn.addEventListener("click", () => void newConversation());
-  traceBtn.addEventListener("click", () => toggleDrawer(!drawer.classList.contains("open")));
+  traceBtn.addEventListener("click", () => toggleTrace(document.body.classList.contains("trace-hidden")));
+  let traceHidden = false;
+  try {
+    traceHidden = localStorage.getItem(TRACE_PREF) === "1";
+  } catch {
+    /* storage blocked: shown by default */
+  }
+  toggleTrace(!traceHidden, false);
   gearBtn.addEventListener("click", () => {
     const open = popover.hidden;
     popover.hidden = !open;
@@ -640,7 +675,6 @@ async function main(): Promise<void> {
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     if (!popover.hidden) closePopover(true);
-    else if (drawer.classList.contains("open")) toggleDrawer(false);
   });
 
   try {
