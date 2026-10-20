@@ -4,6 +4,7 @@ import { el, icon } from "./dom.js";
 import { McpSession, type TraceEntry } from "./mcpClient.js";
 import { GeminiOrchestrator, type Msg, type Orchestrator } from "./orchestrator.js";
 import { RecorderError, canRecord, startRecording, type Recording } from "./recorder.js";
+import { canReplyFast, replyFromResults } from "./reply.js";
 import { ReplayOrchestrator, SCENES } from "./replay.js";
 import { SideCards } from "./sidecards.js";
 import { speak, stopSpeaking, transcribe } from "./voice.js";
@@ -43,6 +44,8 @@ let session: McpSession | null = null;
 let busy = false;
 let recording: Recording | null = null;
 let speakReplies = false;
+/** Fast: when one tool ran, say the tool's own sentence instead of a second model call. */
+let fastReplies = true;
 let users: Array<{ id: string; name: string }> = [];
 
 // ── elements ───────────────────────────────────────────────────────────────
@@ -166,7 +169,8 @@ function addCards(cards: HTMLElement[]): void {
 function updatePills(): void {
   historyPill.replaceChildren(document.createTextNode("Assistant history · "), el("b", { text: `${history.length} message${history.length === 1 ? "" : "s"}` }));
   modePill.className = `pill ${mode}`;
-  modePill.textContent = mode === "live" ? `Live · ${brainModel ?? "Gemini"}` : "Replay · scripted decisions, real MCP calls";
+  modePill.textContent =
+    mode === "live" ? `Live · ${brainModel ?? "Gemini"} · ${fastReplies ? "fast replies" : "natural replies"}` : "Replay · scripted decisions, real MCP calls";
 }
 
 // ── action button (mic / send / stop / wait) ───────────────────────────────
@@ -275,6 +279,21 @@ function buildPopover(): void {
         (v) => {
           mode = v;
           addNote(v === "live" ? "Switched to the live Gemini brain." : "Switched to replay: scripted decisions, real MCP calls.");
+          updatePills();
+        },
+      ),
+    ]),
+    el("div", { class: "row" }, [
+      el("span", { text: "Live replies" }),
+      seg<"fast" | "natural">(
+        [
+          { value: "fast", label: "Fast" },
+          { value: "natural", label: "Natural" },
+        ],
+        fastReplies ? "fast" : "natural",
+        (v) => {
+          fastReplies = v === "fast";
+          addNote(fastReplies ? "Fast replies: one model call per turn when one tool runs, so answers arrive about twice as fast." : "Natural replies: a second model call rewrites each answer, which reads nicer but takes longer.");
           updatePills();
         },
       ),
@@ -388,6 +407,15 @@ async function runTurn(text: string): Promise<void> {
         }
         history.push({ role: "tool", results });
         updatePills();
+        if (mode === "live" && fastReplies && canReplyFast(results)) {
+          // The tool already wrote a short sentence: skip the second model call.
+          const reply = replyFromResults(results);
+          history.push({ role: "assistant", text: reply });
+          addMsg("assistant", reply);
+          if (speakReplies) speak(reply);
+          updatePills();
+          return;
+        }
         typing = showTyping();
         continue;
       }

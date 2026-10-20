@@ -61,11 +61,12 @@ export const SYSTEM_PROMPT = [
   "You can only act through the tools you are given. Never invent meals, weights, allergies or notes: if you need facts, call a tool.",
   "Keep every reply to at most two short, plain sentences. No lists, no markdown, no emoji. Offer at most 3 options.",
   "When the user says they ate or drank something, call log_meal with each food as an item and the right mealType (guess from the time words, else snack).",
-  "When the user shares a lasting fact (an allergy, a diet, an injury or symptom, a habit, a preference), call remember_about_user once per fact with the right category.",
+  "When the user shares a personal fact (allergy, diet, injury or symptom, habit, preference, goal, travel, or schedule), call remember_about_user on that same turn once per fact with the right category. Do not ask whether to remember; save first, then reply conversationally.",
+  "If the user named how long it applies, always pass durationDays (for 2 days use 2, this week use 7). Omit durationDays only when they said nothing about time.",
   "Before giving food advice, call recall_what_you_know. If a tool returns safetyFlags, tell the user clearly and briefly, and remind them it is only a reminder.",
   "To forget or finish a note, call resolve_memory without confirm first and ask the user. Only call it again with confirm true after the user clearly says yes.",
   "Never say the user's body weight out loud: say it is on the screen. Add a short 'this is not medical advice' to any health advice.",
-  "If a tool returns isError or needs_confirmation, say so simply and ask what to do next.",
+  "Ask the user to confirm only for forget, a large weight change, or when a tool returns needs_confirmation.",
 ].join(" ");
 
 interface GeminiPart {
@@ -167,10 +168,22 @@ export function toGeminiContents(messages: readonly BrainMessage[]): GeminiConte
   return contents;
 }
 
-/** Gemini accepts JSON Schema, but not the "$schema" marker. */
-function cleanSchema(schema: Record<string, unknown>): Record<string, unknown> {
-  const { $schema: _ignored, ...rest } = schema;
-  return rest;
+/**
+ * The model gets a slimmer copy of each tool's schema: no "$schema" marker and
+ * none of the numeric/length limits. The MCP server still enforces every limit
+ * (a bad value comes back as an error the model can read), so dropping them
+ * here only saves tokens on every call.
+ */
+const NOISE = new Set(["$schema", "additionalProperties", "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "minLength", "maxLength", "minItems", "maxItems"]);
+export function cleanSchema(schema: unknown): Record<string, unknown> {
+  if (Array.isArray(schema)) return schema.map((x) => cleanSchema(x)) as unknown as Record<string, unknown>;
+  if (schema === null || typeof schema !== "object") return schema as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(schema as Record<string, unknown>)) {
+    if (NOISE.has(k)) continue;
+    out[k] = cleanSchema(v);
+  }
+  return out;
 }
 
 export function parseGeminiResponse(json: unknown): BrainStep {

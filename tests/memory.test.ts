@@ -9,6 +9,7 @@ import {
   normalizeCategory,
   pickExpiring,
   planOps,
+  parseDurationDays,
   resolveTtlDays,
   selectActive,
   toView,
@@ -61,6 +62,30 @@ describe("category rules", () => {
     expect(resolveTtlDays("symptom", 0.2)).toBe(1);
     expect(resolveTtlDays("symptom", 9999)).toBe(365);
     expect(resolveTtlDays("symptom", -3)).toBe(5);
+  });
+});
+
+describe("parseDurationDays", () => {
+  it("reads day counts from natural phrasing", () => {
+    expect(parseDurationDays("traveling to Kerala for 2 days")).toBe(2);
+    expect(parseDurationDays("Going for 14 days")).toBe(14);
+    expect(parseDurationDays("3-day trip")).toBe(3);
+  });
+
+  it("reads weeks and months", () => {
+    expect(parseDurationDays("sore this week")).toBe(7);
+    expect(parseDurationDays("for 2 weeks")).toBe(14);
+    expect(parseDurationDays("for a month")).toBe(30);
+    expect(parseDurationDays("for a year")).toBe(365);
+  });
+
+  it("returns undefined when no duration unit is present", () => {
+    expect(parseDurationDays("allergic to peanuts")).toBeUndefined();
+    expect(parseDurationDays("walks after dinner")).toBeUndefined();
+  });
+
+  it("clamps out-of-range values", () => {
+    expect(parseDurationDays("for 500 days")).toBe(365);
   });
 });
 

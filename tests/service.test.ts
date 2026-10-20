@@ -149,6 +149,24 @@ describe("memory across a fresh conversation, and over time", () => {
     expect(out.outcome).toBe("needs_confirmation");
     expect((await svc.recall("sam")).memories).toHaveLength(0);
   });
+
+  it("uses a spoken duration when durationDays is omitted", async () => {
+    const { svc } = setup();
+    const out = await svc.remember("sam", { category: "habit", text: "traveling to Kerala for 2 days" });
+    expect(out.outcome).toBe("saved");
+    expect(out.memory?.expiresInDays).toBe(2);
+    expectVoiceSafe(out.spoken);
+  });
+
+  it("prefers an explicit durationDays over text parsing", async () => {
+    const { svc } = setup();
+    const out = await svc.remember("sam", {
+      category: "habit",
+      text: "traveling to Kerala for 2 days",
+      durationDays: 5,
+    });
+    expect(out.memory?.expiresInDays).toBe(5);
+  });
 });
 
 describe("resolve: two steps, never by accident", () => {

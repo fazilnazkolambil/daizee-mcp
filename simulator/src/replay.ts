@@ -1,5 +1,6 @@
 import type { BrainMessage, BrainStep } from "../../src/brain/gemini.js";
 import type { Orchestrator } from "./orchestrator.js";
+import { replyFromResults } from "./reply.js";
 import type { ToolInfo } from "./mcpClient.js";
 
 /**
@@ -87,11 +88,7 @@ export class ReplayOrchestrator implements Orchestrator {
 
     // After the tools ran, the reply is what the real service said.
     if (last?.role === "tool") {
-      const spoken = last.results
-        .map((r) => (r.output as { spoken?: string; message?: string })?.spoken ?? (r.output as { message?: string })?.message ?? "")
-        .filter(Boolean)
-        .join(" ");
-      return { type: "final", text: spoken || "Done.", raw: [] };
+      return { type: "final", text: replyFromResults(last.results), raw: [] };
     }
 
     const said = lastUserText(ctx.messages);
