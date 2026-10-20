@@ -50,6 +50,9 @@ export class UserNotFoundError extends Error {
   }
 }
 
+const RECALL_SHOWN = 10;
+const RECALL_SPOKEN = 5;
+
 export class DaizeeService {
   /** Forget requests the user has been asked about (key: user|memory) -> when the yes stops counting. */
   private readonly pendingForget = new Map<string, number>();
@@ -271,14 +274,16 @@ export class DaizeeService {
   async recall(userId: string) {
     await this.profile(userId);
     const now = this.clock.now();
-    const memories = (await this.activeMemories(userId, 5)).map((m) => toView(m, now));
+    // The screen gets up to 10 (the app's own limit); the voice reads the top 5 and counts the rest.
+    const memories = (await this.activeMemories(userId, RECALL_SHOWN)).map((m) => toView(m, now));
     if (!memories.length) {
       return { memories, spoken: spoken("I don't have anything saved about you yet.") };
     }
-    const lines = memories.map((m) => `${capitalize(m.text)}, ${lifespan(m.expiresInDays)}.`);
+    const lines = memories.slice(0, RECALL_SPOKEN).map((m) => `${capitalize(m.text)}, ${lifespan(m.expiresInDays)}.`);
+    const rest = memories.length - RECALL_SPOKEN;
     return {
       memories,
-      spoken: spoken(`I know ${plural(memories.length, "thing")}.`, ...lines),
+      spoken: spoken(`I know ${plural(memories.length, "thing")}.`, ...lines, ...(rest > 0 ? [`And ${rest} more on the screen.`] : [])),
     };
   }
 

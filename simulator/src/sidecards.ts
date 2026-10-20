@@ -34,7 +34,7 @@ export class SideCards {
       return;
     }
     for (const m of memories) this.memBody.appendChild(memoryRow(m));
-    this.memNote.textContent = memories.length >= 5 ? "top 5, allergies first" : "";
+    this.memNote.textContent = memories.length >= 10 ? "top 10, allergies first" : "allergies first";
     growBars(this.memBody);
   }
 

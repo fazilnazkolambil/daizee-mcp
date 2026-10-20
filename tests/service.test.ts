@@ -130,7 +130,16 @@ describe("memory across a fresh conversation, and over time", () => {
     const { svc } = setup();
     const out = await svc.recall("maya");
     expect(out.memories[0]?.category).toBe("allergy");
-    expect(out.memories.length).toBeLessThanOrEqual(5);
+    expect(out.memories.length).toBeLessThanOrEqual(10);
+  });
+
+  it("shows a sixth, low-priority note on screen and counts it out loud ('going to Kerala for a week')", async () => {
+    const { svc } = setup();
+    await svc.remember("maya", { category: "goal", text: "travelling to Kerala for a week", durationDays: 7 });
+    const out = await svc.recall("maya");
+    expect(out.memories.map((m) => m.text)).toContain("travelling to Kerala for a week");
+    expect(out.spoken).toMatch(/I know 6 things\..*And 1 more on the screen\./s);
+    expectVoiceSafe(out.spoken);
   });
 
   it("keeps a repeated fact fresh instead of duplicating it", async () => {
