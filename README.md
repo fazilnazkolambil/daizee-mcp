@@ -102,7 +102,7 @@ The server negotiates MCP protocol versions `2025-11-25` and `2025-03-26` (Amazo
 | Storage | **In-memory demo data by default.** With `STORE=firestore` it reads and writes the real DayZer0 app's Firestore (see below), tested against the Firebase emulator with the app's own triggers |
 | Today's plan (`get_today_plan`) | **Real** when connected to the app (made by the app's backend). In-memory mode uses a seeded plan for the fictional users |
 | Alexa+ itself | **Simulated.** No real Alexa device or Amazon tooling used |
-| Account linking / OAuth | **Not built.** A demo header picks the user. A real deployment would link the user's existing Daizee account |
+| Account linking | **Real token check, simulated linking flow.** Connected to the app, `/mcp` needs a Firebase ID token from DayZer0 sign-in (verified with firebase-admin) and serves RFC 9728 metadata naming the project's token issuer. There is no OAuth authorization server here, so the Alexa+ consent screen is not built; you get a token yourself (see below). The in-memory demo uses a header to pick a fictional user |
 | Demo page with live wire trace, cards, voice, replay mode | **Real**, a simulation of the assistant side |
 | Live Gemini brain | **Optional**, needs your own key |
 
@@ -122,7 +122,8 @@ How it fits in, without any model in this server:
 This server never writes the daily doc: totals stay the app backend's job.
 
 **Safety rails.**
-- Only accounts on an allowlist are reachable. `DAIZEE_ALLOWED_UIDS=demo=<uid>` maps the `x-daizee-user` header value `demo` to one Firebase uid. Any other name is refused before anything is read, and every document path is checked again against the allowlist ([`src/store/docDb.ts`](src/store/docDb.ts)).
+- Every `/mcp` request needs a DayZer0 Firebase ID token (see [How account linking works](#how-account-linking-works)). Without one the answer is `401` with a `WWW-Authenticate` header.
+- Only accounts on an allowlist are reachable, even with a valid token (`403` otherwise). `DAIZEE_ALLOWED_UIDS=demo=<uid>` maps one Firebase uid to the short name `demo`. Any other name is refused before anything is read, and every document path is checked again against the allowlist ([`src/store/docDb.ts`](src/store/docDb.ts)).
 - A real project is only used with an explicit `DAIZEE_ALLOW_LIVE_FIRESTORE=1`. Without it the server refuses to start unless it points at the emulator.
 - In this mode the demo page's **Advance time** and **Reset** are switched off (real data is never wiped or time-shifted).
 - No real user data is in this repo. Tests use invented uids, a fake Firestore, and the emulator's `demo-` project, which cannot reach any real project.
@@ -155,14 +156,27 @@ That run checks that the trigger rebuilt today's totals and posted the meal card
    DAIZEE_ALLOW_LIVE_FIRESTORE=1
    ```
 
-4. `npm run demo`, then talk to it with the header `x-daizee-user: demo` (the demo page picks `demo` automatically). The startup line says `LIVE DATA` and names the allowed users.
+4. `npm run demo`, then call `/mcp` with `Authorization: Bearer <ID token>` for the demo account (how to get one is below). The startup line says `LIVE DATA` and names the allowed users. The demo page sends the `x-daizee-user` header instead of a token, so for a screen recording with the demo page also add `DEMO_MODE=1` to `.env`. That lets the header pick an allowlisted name when no token is sent; never set it on a server other people can reach.
+
+## How account linking works
+
+Alexa+ account linking gives the assistant a token for the user's own account, and the assistant sends it on every MCP call. Here the account is the user's **DayZer0** account, using the Firebase Auth the app already has:
+
+1. The user signs in to DayZer0 (same email and password, or Google, as in the app).
+2. Firebase Auth issues an **ID token**: a signed JWT for that user's uid, valid for one hour.
+3. The assistant calls `/mcp` with `Authorization: Bearer <ID token>`.
+4. This server checks it with firebase-admin `verifyIdToken`: Google's signature, issued for this Firebase project, not expired. The token's uid is the user, and it must be on `DAIZEE_ALLOWED_UIDS` for the hosted demo. The `x-daizee-user` header is ignored once a token is sent.
+
+A client that gets `401` reads the `WWW-Authenticate` header, which points to [`/.well-known/oauth-protected-resource/mcp`](src/server/auth.ts). That document (OAuth Protected Resource Metadata, RFC 9728, as the MCP authorization spec asks) names `https://securetoken.google.com/<project id>`, the issuer of DayZer0's tokens. Behind a proxy, set `DAIZEE_PUBLIC_URL` so the URLs in it are right.
+
+What is not built: an OAuth authorization server that would show Alexa+ a DayZer0 sign-in page and hand the token over (authorization code flow). Firebase does not provide one, and building one is outside this MCP server. Until then you get a token yourself for the demo account, for example with Firebase Auth's REST `signInWithPassword` call and the app's Web API key. The server checks tokens and never sees a password, and it has no language model.
 
 ## How it is organized
 
 ```
 src/memory/   The memory rules (pure functions, no imports from the rest of the project)
 src/store/    Where data lives: in-memory (default) or the DayZer0 app's Firestore
-src/server/   The seven actions and the web doorway
+src/server/   The seven actions, the web doorway, and token auth (auth.ts)
 src/brain/    The demo page's assistant brain (Gemini). NOT part of the MCP server
 simulator/    The demo page (Vite + TypeScript)
 seed/         Fictional demo people, a small food table, allergy keyword rules

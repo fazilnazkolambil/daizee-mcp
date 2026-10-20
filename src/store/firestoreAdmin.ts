@@ -1,4 +1,5 @@
-import { applicationDefault, getApps, initializeApp } from "firebase-admin/app";
+import { applicationDefault, getApps, initializeApp, type App } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 import { getFirestore, Timestamp, type Firestore, type Query } from "firebase-admin/firestore";
 import type { DocData, DocDb, QuerySpec } from "./docDb.js";
 
@@ -12,12 +13,27 @@ import type { DocData, DocDb, QuerySpec } from "./docDb.js";
  * imports firebase-admin.
  */
 export function adminDocDb(projectId: string): DocDb {
-  const app = getApps().find((a) => a.name === "daizee") ??
+  return firestoreDocDb(getFirestore(daizeeApp(projectId)));
+}
+
+function daizeeApp(projectId: string): App {
+  return getApps().find((a) => a.name === "daizee") ??
     initializeApp(
       process.env.FIRESTORE_EMULATOR_HOST ? { projectId } : { projectId, credential: applicationDefault() },
       "daizee",
     );
-  return firestoreDocDb(getFirestore(app));
+}
+
+/**
+ * Checks a Firebase ID token from DayZer0 sign-in: Google's signature, issuer
+ * and audience (this project), and expiry. Revocation is not checked on every
+ * call (that would add a network round trip to each voice request); an ID
+ * token lives one hour, and a revoked account cannot refresh it.
+ * FIREBASE_AUTH_EMULATOR_HOST makes it accept the Auth emulator's tokens.
+ */
+export function adminVerifyIdToken(projectId: string): (token: string) => Promise<{ uid: string }> {
+  const auth = getAuth(daizeeApp(projectId));
+  return async (token) => ({ uid: (await auth.verifyIdToken(token)).uid });
 }
 
 export function firestoreDocDb(fs: Firestore): DocDb {

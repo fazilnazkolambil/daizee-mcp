@@ -1,4 +1,5 @@
 import type { Clock } from "../memory/index.js";
+import type { AuthConfig, VerifyIdToken } from "../server/auth.js";
 import { FirestoreStore } from "./firestoreStore.js";
 
 /**
@@ -11,6 +12,9 @@ import { FirestoreStore } from "./firestoreStore.js";
  *   DAIZEE_ALLOW_LIVE_FIRESTORE=1   required to touch a real (non-emulator) project, so a
  *                         stray setting during development can never write to production.
  *   GOOGLE_APPLICATION_CREDENTIALS  a service account key file, for a real project.
+ *   DEMO_MODE=1           also accept the x-daizee-user header when no token is sent
+ *                         (local demo recording only). Otherwise /mcp needs a Firebase ID token.
+ *   DAIZEE_PUBLIC_URL     the server's public base URL, for the auth metadata behind a proxy.
  */
 export interface FirestoreSettings {
   projectId: string;
@@ -49,4 +53,26 @@ export async function firestoreStoreFromEnv(env: NodeJS.ProcessEnv, clock: Clock
   const settings = firestoreSettings(env);
   const { adminDocDb } = await import("./firestoreAdmin.js");
   return { store: new FirestoreStore(adminDocDb(settings.projectId), settings.users, clock), settings };
+}
+
+/**
+ * Per-user auth for STORE=firestore: a Firebase ID token's uid picks the user,
+ * and only uids on DAIZEE_ALLOWED_UIDS are let in.
+ */
+export async function firebaseAuthFromEnv(env: NodeJS.ProcessEnv, settings: FirestoreSettings): Promise<AuthConfig> {
+  const { adminVerifyIdToken } = await import("./firestoreAdmin.js");
+  return authConfig(settings, adminVerifyIdToken(settings.projectId), env);
+}
+
+/** The pure part of firebaseAuthFromEnv, so tests can pass a fake verifier. */
+export function authConfig(settings: FirestoreSettings, verify: VerifyIdToken, env: NodeJS.ProcessEnv = {}): AuthConfig {
+  const nameForUid = new Map([...settings.users].map(([name, uid]) => [uid, name]));
+  const publicUrl = env.DAIZEE_PUBLIC_URL?.trim();
+  return {
+    projectId: settings.projectId,
+    verify,
+    userForUid: (uid) => nameForUid.get(uid),
+    allowDemoHeader: env.DEMO_MODE === "1",
+    ...(publicUrl ? { publicUrl } : {}),
+  };
 }

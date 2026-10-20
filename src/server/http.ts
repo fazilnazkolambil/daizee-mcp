@@ -6,6 +6,7 @@ import { BrainError, type Brain } from "../brain/gemini.js";
 import { MAX_AUDIO_BYTES, TranscribeError, readRawBody, transcribe } from "../brain/transcribe.js";
 import type { ManualClock } from "../memory/index.js";
 import type { Store } from "../store/types.js";
+import { authenticate, protectedResourceMetadata, publicOrigin, wwwAuthenticate, type AuthConfig } from "./auth.js";
 import { createMcpServer } from "./mcpServer.js";
 import type { DaizeeService } from "./service.js";
 
@@ -19,8 +20,14 @@ export interface AppOptions {
   allowedOrigins?: readonly string[];
   /** Real app data: the demo's time travel and reset are refused. */
   liveData?: boolean;
-  /** The user a request acts as when it names none. */
+  /** The user a request acts as when it names none. Ignored when `auth` is set. */
   defaultUser?: string;
+  /**
+   * Per-user auth: /mcp then needs a Firebase ID token (see ./auth.ts), and
+   * x-daizee-user is ignored unless auth.allowDemoHeader is on. Without it,
+   * the demo header picks the user (fictional in-memory data).
+   */
+  auth?: AuthConfig;
   /**
    * The demo page's assistant brain (separate from the MCP server, which has no
    * language model). Only reachable in demo mode.
@@ -130,7 +137,7 @@ export function createApp(opts: AppOptions): Handler {
         "Access-Control-Allow-Headers",
         "content-type, accept, authorization, mcp-protocol-version, mcp-session-id, x-daizee-user",
       );
-      res.setHeader("Access-Control-Expose-Headers", "Server-Timing, Mcp-Session-Id");
+      res.setHeader("Access-Control-Expose-Headers", "Server-Timing, Mcp-Session-Id, WWW-Authenticate");
     }
     if (method === "OPTIONS") {
       res.writeHead(204);
@@ -144,14 +151,13 @@ export function createApp(opts: AppOptions): Handler {
         return;
       }
 
-      // Stub so MCP clients that look for it get a clear, honest answer.
-      if (url.pathname === "/.well-known/oauth-protected-resource" && method === "GET") {
-        sendJson(res, 200, {
-          resource: `${url.protocol}//${headerValue(req, "host") ?? "localhost"}/mcp`,
-          resource_name: "daizee-mcp (demo)",
-          bearer_methods_supported: [],
-          note: "Demo server: no authentication. Production would use OAuth account linking.",
-        });
+      // RFC 9728: tells an MCP client which authorization server issues tokens for /mcp.
+      if (
+        (url.pathname === "/.well-known/oauth-protected-resource" ||
+          url.pathname === "/.well-known/oauth-protected-resource/mcp") &&
+        method === "GET"
+      ) {
+        sendJson(res, 200, protectedResourceMetadata(publicOrigin(req, opts.auth), opts.auth));
         return;
       }
 
@@ -166,7 +172,23 @@ export function createApp(opts: AppOptions): Handler {
           });
           return;
         }
-        const userId = headerValue(req, "x-daizee-user") ?? url.searchParams.get("user") ?? opts.defaultUser ?? "maya";
+        let userId: string;
+        if (opts.auth) {
+          const result = await authenticate(req, opts.auth);
+          if (!result.ok) {
+            const challenge = wwwAuthenticate(publicOrigin(req, opts.auth), result);
+            sendJson(
+              res,
+              result.status,
+              { jsonrpc: "2.0", error: { code: -32001, message: result.description }, id: null },
+              { "WWW-Authenticate": challenge },
+            );
+            return;
+          }
+          userId = result.userId;
+        } else {
+          userId = headerValue(req, "x-daizee-user") ?? url.searchParams.get("user") ?? opts.defaultUser ?? "maya";
+        }
         const body = await readBody(req);
 
         // New server + transport per request: stateless, nothing is shared.

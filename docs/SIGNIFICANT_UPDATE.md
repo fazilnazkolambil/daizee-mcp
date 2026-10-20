@@ -25,6 +25,7 @@ Built from 2026-10-14 in `daizee-mcp`:
 - An MCP server (official SDK, Streamable HTTP, stateless) with seven voice-shaped actions, including `get_today_plan` (read only: the app's daily focus and eat / move / recover steps)
 - A tested TypeScript port of the app's expiring, safety-first memory rules, behind a swappable store
 - A Firestore store (`STORE=firestore`) that reads and writes the live DayZer0 app's data in the app's own document shapes, so a voice-logged meal or weigh-in is picked up by the app's existing triggers and shows up in the app. Reachable accounts are limited to an allowlist, a real project needs an explicit opt-in, and it is tested with a fake Firestore and in the Firebase emulator running the app's own `onMealWritten` / `onWeightLogWritten` triggers. The app's code was not changed for this
+- Per-user auth in the shape Alexa+ account linking expects: with the Firestore store, `/mcp` requires a Firebase ID token from DayZer0's existing sign-in (checked with firebase-admin), the token's uid is the user, unauthenticated calls get `401` with `WWW-Authenticate`, and `/.well-known/oauth-protected-resource` (RFC 9728) names the app's Firebase token issuer. The uid allowlist stays as an extra guard. The OAuth consent screen for Alexa+ is not built
 - An allergy / diet safety check on meal logging, with a controllable clock for demonstrating expiry
 - Contract tests that drive the server with the real MCP client, and a recorded wire trace (regenerated with `npm run trace:update`)
 - A demo page that acts as a real MCP client: live wire trace, cards, voice, a New-conversation proof and a time-advance control, with a replay mode and an optional live Gemini brain
@@ -36,5 +37,5 @@ Built from 2026-10-14 in `daizee-mcp`:
 
 - Alexa+ certification, a real Alexa device, or any Amazon partner tooling
 - Voice support inside the Flutter app: this entry adds none. The only app change near it is `fcd4434` (2026-10-14), made in the app repo before this work and unrelated to voice
-- Account linking (a demo header picks the user)
+- A full Alexa+ account-linking flow: the server checks DayZer0 Firebase ID tokens, but there is no OAuth authorization server (sign-in and consent page) for Alexa+ to send the user to. In-memory demo mode still picks a fictional user with a header
 - A Play Store launch date (taken from Play Console, not from this document)
