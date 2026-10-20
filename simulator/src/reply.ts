@@ -32,13 +32,26 @@ export function replyFromResults(results: readonly ToolResultLike[]): string {
 }
 
 /**
- * Fast replies are used only when exactly ONE action tool ran and it said something.
+ * Fast replies are used only when exactly ONE action tool ran, it said something,
+ * and the user did not also ask a question.
  * Stitching several tool sentences together ("Got it, I'll remember that for a
  * year. Got it, I'll remember that for 7 days.") reads clumsily, so a turn that
  * used several tools still gets the model's own wording.
  */
-export function canReplyFast(results: readonly ToolResultLike[]): boolean {
+/**
+ * "My knee hurts, should I still walk?" saves a note AND asks something: the
+ * tool's "Got it, I'll remember that" would skip the answer. Question marks and
+ * leading question words both count, since speech-to-text may drop the "?".
+ */
+export function asksSomething(userText: string): boolean {
+  const t = userText.trim().toLowerCase();
+  if (t.includes("?")) return true;
+  return /(^|[,.;!]\s*|\b(?:and|but|so)\s+)(should|can|could|what|how|why|when|which|is|are|do|does|will|would|shall|may)\b/.test(t);
+}
+
+export function canReplyFast(results: readonly ToolResultLike[], userText = ""): boolean {
   if (results.length !== 1) return false;
+  if (asksSomething(userText)) return false;
   const only = results[0] as ToolResultLike;
   return ACTION_TOOLS.has(only.name ?? "") && sentenceOf(only) !== "";
 }

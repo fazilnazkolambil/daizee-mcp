@@ -22,6 +22,14 @@ describe("replyFromResults / canReplyFast (fast replies)", () => {
     expect(canReplyFast([{ output: { spoken: "No name." } }])).toBe(false);
     expect(canReplyFast([])).toBe(false);
   });
+  it("lets the model answer when the user also asked something", () => {
+    const saved = [{ name: "remember_about_user", output: { spoken: "Got it, I'll remember that for 7 more days." } }];
+    expect(canReplyFast(saved, "My knee hurts a lot today, should I still go for my walk?")).toBe(false);
+    expect(canReplyFast(saved, "my knee hurts so should I skip my walk")).toBe(false);
+    expect(canReplyFast(saved, "What can I eat")).toBe(false);
+    expect(canReplyFast(saved, "I'm going to Kerala for 1 week")).toBe(true);
+    expect(canReplyFast(saved, "I'm allergic to peanuts, and my left knee is sore this week.")).toBe(true);
+  });
   it("lets the model answer after a lookup ('what can I eat for dinner?' recalls first)", () => {
     for (const name of ["recall_what_you_know", "get_day_progress", "get_today_plan"]) {
       expect(canReplyFast([{ name, output: { spoken: "I know 5 things." } }])).toBe(false);

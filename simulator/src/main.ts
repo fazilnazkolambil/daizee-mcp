@@ -435,7 +435,7 @@ async function runTurn(text: string): Promise<void> {
         }
         history.push({ role: "tool", results });
         updatePills();
-        if (mode === "live" && fastReplies && canReplyFast(results)) {
+        if (mode === "live" && fastReplies && canReplyFast(results, text)) {
           // The tool already wrote a short sentence: skip the second model call.
           const reply = replyFromResults(results);
           history.push({ role: "assistant", text: reply });

@@ -80,6 +80,14 @@ const CASES: Case[] = [
       { label: "recall_what_you_know before advice", ok: (c) => used(c, "recall_what_you_know").length > 0 },
       { label: "answers the question, not just the memory list", ok: (_c, r) => r.trim() !== "" && !/^i know \d+ things/i.test(r.trim()) },
       { label: "no peanut suggestion", ok: (_c, r) => !/\bpeanut/i.test(r) || /avoid|allerg|without|no peanut/i.test(r) },
+      { label: "no medical disclaimer on a dinner idea", ok: (_c, r) => !/medical advice|not a doctor/i.test(r) },
+    ],
+  },
+  {
+    id: "symptom-advice", user: "maya", freshConversation: true, say: ["My knee hurts a lot today, should I still go for my walk?"],
+    checks: [
+      { label: "answers the question", ok: (_c, r) => r.trim().length > 20 },
+      { label: "short 'not a doctor' note on a symptom", ok: (_c, r) => /doctor|medical advice|physio|professional/i.test(r) },
     ],
   },
   {
@@ -229,7 +237,7 @@ async function runCase(c: Case, client: Client): Promise<CaseResult> {
           results.push({ id: call.id, name: call.name, output: output ?? {} });
         }
         history.push({ role: "tool", results });
-        if (FAST && canReplyFast(results)) {
+        if (FAST && canReplyFast(results, utterance)) {
           // No second model call: the tool already wrote the sentence.
           reply = replyFromResults(results);
           history.push({ role: "assistant", text: reply });
