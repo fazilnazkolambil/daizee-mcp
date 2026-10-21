@@ -5,16 +5,61 @@
  * /brain/transcribe route instead.)
  */
 
-export function speak(text: string): void {
-  if (!("speechSynthesis" in window) || !text) return;
+import { chooseVoice } from "./talk.js";
+
+let chosen: SpeechSynthesisVoice | undefined;
+function pickVoice(): SpeechSynthesisVoice | undefined {
+  if (!("speechSynthesis" in window)) return undefined;
+  chosen ??= chooseVoice(window.speechSynthesis.getVoices());
+  return chosen;
+}
+if (typeof window !== "undefined" && "speechSynthesis" in window) {
+  // Voices load asynchronously in Chrome: pick again once they arrive.
+  window.speechSynthesis.addEventListener?.("voiceschanged", () => {
+    chosen = chooseVoice(window.speechSynthesis.getVoices());
+  });
+}
+
+let speaking = false;
+/** True while a reply is being read aloud. */
+export function isSpeaking(): boolean {
+  return speaking;
+}
+
+/**
+ * Reads `text` aloud. Resolves when it has finished (or was stopped, or the
+ * browser cannot speak), so the page knows when it may listen again. A
+ * watchdog resolves anyway if the browser never reports the end.
+ */
+export function speak(text: string): Promise<void> {
+  if (!("speechSynthesis" in window) || !text) return Promise.resolve();
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = "en-IN";
-  window.speechSynthesis.speak(utter);
+  const voice = pickVoice();
+  if (voice) utter.voice = voice;
+  utter.lang = voice?.lang ?? "en-IN";
+  utter.rate = 1.03;
+  speaking = true;
+  return new Promise<void>((resolve) => {
+    let settled = false;
+    const finish = (): void => {
+      if (settled) return;
+      settled = true;
+      speaking = false;
+      clearTimeout(watchdog);
+      resolve();
+    };
+    // About 2.6 words a second, plus slack: never wait forever on a lost "end" event.
+    const watchdog = setTimeout(finish, 3_000 + text.split(/\s+/).length * 450);
+    utter.onend = finish;
+    utter.onerror = finish;
+    window.speechSynthesis.speak(utter);
+  });
 }
 
 export function stopSpeaking(): void {
   if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  speaking = false;
 }
 
 export interface TranscribeResult {

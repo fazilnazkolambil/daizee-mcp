@@ -7,7 +7,8 @@ import { RecorderError, canRecord, startRecording, type Recording } from "./reco
 import { canReplyFast, replyFromResults } from "./reply.js";
 import { ReplayOrchestrator, SCENES } from "./replay.js";
 import { SideCards } from "./sidecards.js";
-import { speak, stopSpeaking, transcribe } from "./voice.js";
+import { isGoodbye } from "./talk.js";
+import { isSpeaking, speak, stopSpeaking, transcribe } from "./voice.js";
 
 const MAX_HOPS = 5;
 const BUDGET_MS = 500;
@@ -43,7 +44,13 @@ let history: Msg[] = [];
 let session: McpSession | null = null;
 let busy = false;
 let recording: Recording | null = null;
-let speakReplies = false;
+let speakReplies = true;
+/** Conversation mode: after a spoken reply to a spoken turn, listen again for the answer (like a follow-up on a smart speaker). */
+let conversationMode = true;
+/** The reply being read aloud, so conversation mode can wait for it to finish. */
+let lastSpeech: Promise<void> | null = null;
+/** Whether the last turn ended with a reply from the assistant (not an error). */
+let lastTurnReplied = false;
 /** Fast: when one tool ran, say the tool's own sentence instead of a second model call. */
 let fastReplies = true;
 let users: Array<{ id: string; name: string }> = [];
@@ -69,7 +76,8 @@ const actionBtn = el("button", { class: "action", attrs: { type: "button", "data
   icon("stop", "i-stop"),
   icon("wait", "i-wait"),
 ]);
-const composer = el("form", { class: "composer", attrs: { autocomplete: "off" } }, [input, level, actionBtn]);
+const listenLabel = el("span", { class: "listen-label", attrs: { "aria-live": "polite" }, text: "Listening…" });
+const composer = el("form", { class: "composer", attrs: { autocomplete: "off" } }, [input, listenLabel, level, actionBtn]);
 const fine = el("p", { class: "fineprint", text: "Demo data is fictional. What you say or type is processed by Gemini and shared with other visitors of this demo, so please don't enter real health details." });
 
 const traceList = el("div", { class: "trace-list", attrs: { "aria-live": "polite", "aria-relevant": "additions" } });
@@ -285,9 +293,16 @@ function seg<T extends string>(options: Array<{ value: T; label: string; disable
 }
 function buildPopover(): void {
   const speakSwitch = el("input", { class: "switch", attrs: { type: "checkbox", role: "switch", "aria-label": "Speak replies aloud" } });
+  speakSwitch.checked = speakReplies;
   speakSwitch.addEventListener("change", () => {
     speakReplies = speakSwitch.checked;
     if (!speakReplies) stopSpeaking();
+  });
+  const convoSwitch = el("input", { class: "switch", attrs: { type: "checkbox", role: "switch", "aria-label": "Conversation mode: after a spoken reply, listen for your answer" } });
+  convoSwitch.checked = conversationMode;
+  convoSwitch.addEventListener("change", () => {
+    conversationMode = convoSwitch.checked;
+    addNote(conversationMode ? "Conversation mode on: after Daizee answers out loud, the mic opens for your reply." : "Conversation mode off: tap the mic for each turn.");
   });
   const resetBtn = el("button", { class: "ghost", attrs: { type: "button" } }, [icon("reset"), el("span", { text: "Reset demo data" })]);
   resetBtn.addEventListener("click", () => {
@@ -327,6 +342,7 @@ function buildPopover(): void {
       ),
     ]),
     el("label", { class: "row" }, [el("span", { text: "Speak replies" }), speakSwitch]),
+    el("label", { class: "row" }, [el("span", { text: "Conversation mode" }), convoSwitch]),
     el("div", { class: "pop-actions" }, [resetBtn]),
   );
   if (busy) popover.querySelectorAll<HTMLButtonElement | HTMLInputElement>("button, input").forEach((c) => (c.disabled = true));
@@ -391,6 +407,11 @@ function trimHistory(): void {
   }
 }
 
+/** Shows nothing new: reads the reply aloud (when on) and marks the turn as answered. */
+function sayAloud(reply: string): void {
+  lastTurnReplied = true;
+  if (speakReplies) lastSpeech = speak(reply);
+}
 async function runTurn(text: string): Promise<void> {
   if (busy) return;
   if (!session) {
@@ -399,6 +420,8 @@ async function runTurn(text: string): Promise<void> {
   }
   hideHero();
   stopSpeaking();
+  lastSpeech = null;
+  lastTurnReplied = false;
   addMsg("user", text);
   trimHistory();
   const turnStart = history.length; // a failed turn is rolled back to here
@@ -440,7 +463,7 @@ async function runTurn(text: string): Promise<void> {
           const reply = replyFromResults(results);
           history.push({ role: "assistant", text: reply });
           addMsg("assistant", reply);
-          if (speakReplies) speak(reply);
+          sayAloud(reply);
           updatePills();
           return;
         }
@@ -453,7 +476,7 @@ async function runTurn(text: string): Promise<void> {
       const reply = step.text || "Done.";
       history.push({ role: "assistant", text: reply, raw: step.raw });
       addMsg("assistant", reply);
-      if (speakReplies) speak(reply);
+      sayAloud(reply);
       return;
     }
     typing?.remove();
@@ -560,7 +583,7 @@ function micMessage(err: unknown): string {
       case "no-microphone":
         return "No microphone was found. Please type instead.";
       case "too-short":
-        return "That was too short. Tap the mic, speak, then tap again to send.";
+        return "That was too short. Tap the mic and try again.";
       case "unsupported":
         return "This browser can't record audio here. Please type instead.";
       default:
@@ -569,23 +592,36 @@ function micMessage(err: unknown): string {
   }
   return err instanceof Error ? err.message : "Voice input failed.";
 }
-async function toggleMic(): Promise<void> {
+/** Hands-free timings: end a turn after this much quiet, give up if nobody talks. */
+const END_OF_SPEECH_MS = 1_000;
+const NO_SPEECH_MS = 8_000;
+const FOLLOW_UP_NO_SPEECH_MS = 6_000;
+
+/**
+ * One spoken turn: listen (it stops by itself when you stop talking), transcribe,
+ * answer. With conversation mode on, a spoken reply is followed by listening
+ * again, so you can just answer ("yes, forget it"). Saying "that's all" or
+ * "stop", staying quiet, pressing Escape or typing ends it.
+ */
+async function toggleMic(followUp = false): Promise<void> {
   if (recording) {
     recording.stop();
     return;
   }
+  if (isSpeaking()) stopSpeaking(); // talking over the reply interrupts it
   if (busy || !session) return;
   setBusy(true); // nothing else may run while the mic is open or the audio is being transcribed
   setAction("wait");
   let rec: Recording;
   try {
-    rec = await startRecording({ maxMs: 12_000, onLevel });
+    rec = await startRecording({ maxMs: 12_000, onLevel, endOnSilenceMs: END_OF_SPEECH_MS, noSpeechMs: followUp ? FOLLOW_UP_NO_SPEECH_MS : NO_SPEECH_MS });
   } catch (err) {
     addNote(micMessage(err));
     setBusy(false);
     return;
   }
   recording = rec;
+  listenLabel.textContent = followUp ? "Listening for your reply…" : "Listening… just talk";
   composer.classList.add("recording");
   syncAction();
   let text = "";
@@ -605,11 +641,26 @@ async function toggleMic(): Promise<void> {
     composer.classList.remove("recording");
     levels.fill(0);
     paintLevels();
-    addNote(micMessage(err));
+    const quietEnd = err instanceof RecorderError && (err.code === "no-speech" || err.code === "too-short" || err.message === "Recording cancelled.");
+    if (followUp && quietEnd) addNote("Stopped listening. Tap the mic to talk again.");
+    else if (err instanceof RecorderError && err.code === "no-speech") addNote("I didn't hear anything. Tap the mic and talk, or type.");
+    else if (!(err instanceof RecorderError && err.message === "Recording cancelled.")) addNote(micMessage(err));
   }
   setBusy(false);
-  if (text) await runTurn(text);
-  else if (!failed) addNote("I didn't catch that. Try again, or type.");
+  if (!text) {
+    if (!failed) addNote("I didn't catch that. Try again, or type.");
+    return;
+  }
+  if (isGoodbye(text)) {
+    addMsg("user", text);
+    addNote("Okay. Tap the mic whenever you want to talk again.");
+    return;
+  }
+  await runTurn(text);
+  if (!(conversationMode && speakReplies && lastTurnReplied)) return;
+  await lastSpeech;
+  await new Promise((r) => setTimeout(r, 250)); // let the speaker fall silent before the mic opens
+  if (conversationMode && !busy && !recording && !isSpeaking() && !input.value.trim()) void toggleMic(true);
 }
 
 // ── chips ──────────────────────────────────────────────────────────────────
@@ -653,7 +704,7 @@ async function main(): Promise<void> {
   actionBtn.addEventListener("click", () => {
     const m = actionBtn.dataset.mode;
     if (m === "send") composer.requestSubmit();
-    else if (m === "mic" || m === "stop") void toggleMic();
+    else if (m === "mic" || m === "stop") void toggleMic(false);
   });
   newConvoBtn.addEventListener("click", () => void newConversation());
   traceBtn.addEventListener("click", () => toggleTrace(document.body.classList.contains("trace-hidden")));
@@ -675,6 +726,8 @@ async function main(): Promise<void> {
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     if (!popover.hidden) closePopover(true);
+    else if (recording) recording.cancel(); // ends hands-free listening without sending anything
+    else if (isSpeaking()) stopSpeaking();
   });
 
   try {

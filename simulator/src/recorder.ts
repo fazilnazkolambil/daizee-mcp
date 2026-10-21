@@ -45,6 +45,7 @@
  * settles, so the browser's recording indicator turns off.
  */
 
+import { EndpointDetector } from "./endpoint.js";
 import {
   MAX_WAV_BYTES,
   TARGET_SAMPLE_RATE,
@@ -58,7 +59,7 @@ import {
   smoothLevel,
 } from "./wav.js";
 
-export type RecorderErrorCode = "unsupported" | "permission-denied" | "no-microphone" | "too-short" | "failed";
+export type RecorderErrorCode = "unsupported" | "permission-denied" | "no-microphone" | "too-short" | "no-speech" | "failed";
 
 export class RecorderError extends Error {
   readonly code: RecorderErrorCode;
@@ -86,6 +87,10 @@ export interface RecordingOptions {
   minMs?: number;
   /** Called about 60 times a second while recording with a smooth 0..1 loudness, then once with 0. */
   onLevel?: (level: number) => void;
+  /** Hands-free: stop by itself after this much quiet once the person has spoken. Needs the level meter (onLevel). */
+  endOnSilenceMs?: number;
+  /** Hands-free: if nobody speaks for this long, give up with a "no-speech" error. Needs onLevel. */
+  noSpeechMs?: number;
 }
 
 const DEFAULT_MAX_MS = 12_000;
@@ -98,6 +103,8 @@ const MAX_SAMPLES = Math.min(Math.floor((MAX_WAV_BYTES - WAV_HEADER_BYTES) / 2),
 const SILENCE_PEAK = 0.001;
 /** How long to wait for MediaRecorder to hand over its data after stop(). */
 const STOP_WATCHDOG_MS = 4_000;
+/** How often hands-free mode checks whether the person has stopped talking. */
+const ENDPOINT_TICK_MS = 50;
 /** How long decoding or resampling may take. */
 const PROCESS_TIMEOUT_MS = 10_000;
 
@@ -111,6 +118,7 @@ const MESSAGES = {
   failed: "Something went wrong with the recording. Please try again, or type instead.",
   cancelled: "Recording cancelled.",
   timeout: "Processing the recording took too long. Please try again, or type instead.",
+  noSpeech: "I didn't hear anything.",
 } as const;
 
 // ── feature detection ───────────────────────────────────────────────────────
@@ -318,6 +326,7 @@ export async function startRecording(opts: RecordingOptions = {}): Promise<Recor
   let frame = 0;
   let meterOn = false;
   let maxTimer: ReturnType<typeof setTimeout> | undefined;
+  let endpointTimer: ReturnType<typeof setInterval> | undefined;
   let watchdogTimer: ReturnType<typeof setTimeout> | undefined;
   let phase: Phase = "recording";
   let startedAt = 0;
@@ -353,6 +362,7 @@ export async function startRecording(opts: RecordingOptions = {}): Promise<Recor
   /** Stops the microphone, the meter and the timers. The AudioContext stays open for decoding. */
   const releaseCapture = (): void => {
     clearTimeout(maxTimer);
+    clearInterval(endpointTimer);
     clearTimeout(watchdogTimer);
     stopMeter();
     const src = source;
@@ -496,6 +506,30 @@ export async function startRecording(opts: RecordingOptions = {}): Promise<Recor
         };
         meterOn = true;
         frame = requestAnimationFrame(tick);
+
+        // Hands-free end of speech runs on its own timer, not on animation
+        // frames: those pause when the tab is hidden, and the turn must still end.
+        if (opts.endOnSilenceMs !== undefined || opts.noSpeechMs !== undefined) {
+          const endpoint = new EndpointDetector({ silenceMs: opts.endOnSilenceMs ?? Number.POSITIVE_INFINITY, noSpeechMs: opts.noSpeechMs });
+          const buf = new Uint8Array(probe.fftSize);
+          let heard = 0;
+          let last = performance.now();
+          endpointTimer = setInterval(() => {
+            if (phase !== "recording" || !analyser) return clearInterval(endpointTimer);
+            analyser.getByteTimeDomainData(buf);
+            heard = smoothLevel(heard, levelFromTimeDomain(buf));
+            const now = performance.now();
+            const state = endpoint.feed(heard, now - last);
+            last = now;
+            if (state === "end") {
+              clearInterval(endpointTimer);
+              stop();
+            } else if (state === "no-speech") {
+              clearInterval(endpointTimer);
+              fail(new RecorderError("no-speech", MESSAGES.noSpeech));
+            }
+          }, ENDPOINT_TICK_MS);
+        }
       } catch {
         meterOn = false;
       }
