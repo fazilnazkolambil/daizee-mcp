@@ -68,6 +68,10 @@ describe("category rules", () => {
 describe("parseDurationDays", () => {
   it("reads day counts from natural phrasing", () => {
     expect(parseDurationDays("traveling to Kerala for 2 days")).toBe(2);
+    expect(parseDurationDays("I'm going to Dubai for two weeks")).toBe(14);
+    expect(parseDurationDays("away for a couple of weeks")).toBe(14);
+    expect(parseDurationDays("on a diet for three months")).toBe(90);
+    expect(parseDurationDays("I have two kids")).toBeUndefined(); // a number word alone is not a duration
     expect(parseDurationDays("Going for 14 days")).toBe(14);
     expect(parseDurationDays("3-day trip")).toBe(3);
   });

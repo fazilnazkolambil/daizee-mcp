@@ -94,8 +94,16 @@ export function resolveTtlDays(category: string, ttlDays?: number): number {
  * Pull a duration from natural language when the assistant omitted durationDays.
  * Conservative: requires an explicit unit (days, weeks, months, year).
  */
+const NUMBER_WORDS: Record<string, string> = {
+  one: "1", two: "2", three: "3", four: "4", five: "5", six: "6", seven: "7", eight: "8", nine: "9", ten: "10",
+  eleven: "11", twelve: "12", fourteen: "14", fifteen: "15", twenty: "20", thirty: "30",
+};
+
 export function parseDurationDays(text: string): number | undefined {
-  const t = normalizeText(text);
+  // "two weeks" and "a couple of weeks" count like "2 weeks" (speech recognition writes either).
+  const t = normalizeText(text)
+    .replace(/\ba (?:couple|few) (?:of )?(?=(?:days?|weeks?|months?)\b)/g, "2 ")
+    .replace(/\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fourteen|fifteen|twenty|thirty)\b(?=\s*-?\s*(?:days?|weeks?|months?|years?)\b)/g, (w) => NUMBER_WORDS[w] ?? w);
   if (!t) return undefined;
 
   const dayMatch = t.match(/\b(?:for|next|in)\s+(\d+)\s*days?\b|\b(\d+)\s*day\b|\b(\d+)\s*-\s*day\b/);
