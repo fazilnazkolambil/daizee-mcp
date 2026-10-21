@@ -327,6 +327,9 @@ export async function startRecording(opts: RecordingOptions = {}): Promise<Recor
   let meterOn = false;
   let maxTimer: ReturnType<typeof setTimeout> | undefined;
   let endpointTimer: ReturnType<typeof setInterval> | undefined;
+  /** Hands-free only: whether the end-of-speech detector ever heard talking. */
+  let endpointOn = false;
+  let heardSpeech = false;
   let watchdogTimer: ReturnType<typeof setTimeout> | undefined;
   let phase: Phase = "recording";
   let startedAt = 0;
@@ -440,6 +443,12 @@ export async function startRecording(opts: RecordingOptions = {}): Promise<Recor
 
   const stop = (): void => {
     if (phase !== "recording") return;
+    // Nobody spoke: never send room noise to be transcribed (the model invents
+    // a plausible sentence from its word list instead of returning nothing).
+    if (endpointOn && !heardSpeech) {
+      fail(new RecorderError("no-speech", MESSAGES.noSpeech));
+      return;
+    }
     phase = "stopping";
     clearTimeout(maxTimer);
     stopMeter();
@@ -514,6 +523,7 @@ export async function startRecording(opts: RecordingOptions = {}): Promise<Recor
           const buf = new Uint8Array(probe.fftSize);
           let heard = 0;
           let last = performance.now();
+          endpointOn = true;
           endpointTimer = setInterval(() => {
             if (phase !== "recording" || !analyser) return clearInterval(endpointTimer);
             analyser.getByteTimeDomainData(buf);
@@ -521,6 +531,7 @@ export async function startRecording(opts: RecordingOptions = {}): Promise<Recor
             const now = performance.now();
             const state = endpoint.feed(heard, now - last);
             last = now;
+            heardSpeech = endpoint.heardSpeech;
             if (state === "end") {
               clearInterval(endpointTimer);
               stop();

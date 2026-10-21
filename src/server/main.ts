@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { brainFromEnv, type Brain } from "../brain/gemini.js";
+import { ttsFromEnv, type CloudTts } from "../brain/tts.js";
 import { ManualClock } from "../memory/index.js";
 import { firebaseAuthFromEnv, firestoreStoreFromEnv, InMemoryStore, type Store } from "../store/index.js";
 import { loadSeedData } from "./data.js";
@@ -17,6 +18,7 @@ export function buildApp(
     demo?: boolean;
     allowedOrigins?: string[];
     brain?: Brain | null;
+    tts?: CloudTts | null;
     staticDir?: string;
     /** Real app data (FirestoreStore). Turns off the demo's time travel and reset. */
     live?: { store: Store; clock: ManualClock; defaultUser: string };
@@ -38,6 +40,7 @@ export function buildApp(
     auth: options.auth,
     allowedOrigins: options.allowedOrigins,
     brain: options.brain ?? null,
+    tts: options.tts ?? null,
     staticDir: options.staticDir,
     vocabulary: [
       ...data.dishes.flatMap((d) => [d.name, ...d.aliases]),
@@ -62,6 +65,7 @@ async function main(): Promise<void> {
   const demo = process.env.DAIZEE_DEMO !== "0"; // on by default for the local demo
   const origins = (process.env.DAIZEE_ALLOWED_ORIGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
   const brain = demo ? brainFromEnv() : null;
+  const tts = demo ? ttsFromEnv() : null;
   const dist = resolve(dirname(fileURLToPath(import.meta.url)), "../../simulator/dist");
   const staticDir = existsSync(dist) ? dist : undefined;
 
@@ -81,12 +85,13 @@ async function main(): Promise<void> {
       ? "\nAuth: Firebase ID token, or x-daizee-user (DEMO_MODE=1, local demo only)."
       : "\nAuth: Firebase ID token required (Authorization: Bearer). Set DEMO_MODE=1 to also allow x-daizee-user.";
   }
-  const { handler } = buildApp({ demo, allowedOrigins: origins, brain, staticDir, live, auth });
+  const { handler } = buildApp({ demo, allowedOrigins: origins, brain, tts, staticDir, live, auth });
 
   createServer((req, res) => void handler(req, res)).listen(port, () => {
     console.log(`daizee-mcp listening on http://localhost:${port}/mcp  (demo controls ${demo ? "ON" : "off"})`);
     console.log(usersLine);
     console.log(brain ? `Assistant brain: Gemini (${brain.model})` : "Assistant brain: not configured (replay mode only)");
+    console.log(tts ? `Assistant voice: Google Cloud Text-to-Speech (${tts.voice})` : "Assistant voice: the browser's own (set DAIZEE_TTS=google for a natural cloud voice)");
     console.log(staticDir ? `Demo page: http://localhost:${port}/` : "Demo page: not built yet (run npm run build:sim)");
   });
 }

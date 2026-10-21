@@ -1,6 +1,7 @@
 import { defineSecret } from "firebase-functions/params";
 import { onRequest } from "firebase-functions/v2/https";
 import { Brain } from "../../src/brain/gemini.js";
+import { CloudTts } from "../../src/brain/tts.js";
 import { buildApp } from "../../src/server/main.js";
 
 /**
@@ -32,7 +33,10 @@ function getHandler(): Handler {
       })
     : null;
 
-  handler = buildApp({ demo: true, brain, allowedOrigins: origins }).handler;
+  // A natural voice for spoken replies, billed to this project (Text-to-Speech API).
+  const tts = project ? new CloudTts({ project, voice: process.env.DAIZEE_TTS_VOICE, dailyCap: Number(process.env.DAIZEE_TTS_DAILY_CAP) || 500 }) : null;
+
+  handler = buildApp({ demo: true, brain, tts, allowedOrigins: origins }).handler;
   return handler;
 }
 

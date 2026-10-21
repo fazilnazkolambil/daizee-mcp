@@ -4,6 +4,7 @@ import { extname, join, normalize, sep } from "node:path";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { BrainError, type Brain } from "../brain/gemini.js";
 import { MAX_AUDIO_BYTES, TranscribeError, readRawBody, transcribe } from "../brain/transcribe.js";
+import type { CloudTts } from "../brain/tts.js";
 import type { ManualClock } from "../memory/index.js";
 import type { Store } from "../store/types.js";
 import { authenticate, protectedResourceMetadata, publicOrigin, wwwAuthenticate, type AuthConfig } from "./auth.js";
@@ -18,6 +19,8 @@ export interface AppOptions {
   demo: boolean;
   /** Extra browser origins allowed to call the server (localhost is always allowed). */
   allowedOrigins?: readonly string[];
+  /** The demo page's natural voice (Google Cloud Text-to-Speech). Optional; the page falls back to the browser's voice. */
+  tts?: CloudTts | null;
   /** Real app data: the demo's time travel and reset are refused. */
   liveData?: boolean;
   /** The user a request acts as when it names none. Ignored when `auth` is set. */
@@ -208,7 +211,7 @@ export function createApp(opts: AppOptions): Handler {
 
       // The demo page's assistant brain: demo mode only, and never the MCP server.
       if (opts.demo && url.pathname === "/brain/status" && method === "GET") {
-        sendJson(res, 200, { configured: Boolean(opts.brain), model: opts.brain?.model ?? null });
+        sendJson(res, 200, { configured: Boolean(opts.brain), model: opts.brain?.model ?? null, voice: opts.tts ? opts.tts.voice : null });
         return;
       }
       if (opts.demo && url.pathname === "/brain/step") {
@@ -230,6 +233,28 @@ export function createApp(opts: AppOptions): Handler {
         return;
       }
 
+      // Text to speech for the demo page: { text } in, MP3 out (see src/brain/tts.ts).
+      if (opts.demo && url.pathname === "/brain/speak") {
+        if (method !== "POST") {
+          res.setHeader("Allow", "POST");
+          sendJson(res, 405, { error: "Use POST" });
+          return;
+        }
+        if (!opts.tts) {
+          sendJson(res, 503, { error: "voice_not_configured", message: "No cloud voice is set up; the page uses the browser's voice." });
+          return;
+        }
+        try {
+          const body = (await readBody(req)) as { text?: unknown } | null;
+          const audio = await opts.tts.synthesize(typeof body?.text === "string" ? body.text : "");
+          res.writeHead(200, { "content-type": "audio/mpeg", "content-length": String(audio.length), "cache-control": "no-store" });
+          res.end(audio);
+        } catch (err) {
+          if (err instanceof BrainError) sendJson(res, err.status, { error: "voice_error", message: err.message });
+          else throw err;
+        }
+        return;
+      }
       // Speech to text for the demo page: raw WAV bytes in, { text } out (see src/brain/transcribe.ts).
       if (opts.demo && url.pathname === "/brain/transcribe") {
         if (method !== "POST") {

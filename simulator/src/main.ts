@@ -3,12 +3,13 @@ import { cardsFor, type MemoryView, type Macros } from "./cards.js";
 import { el, icon } from "./dom.js";
 import { McpSession, type TraceEntry } from "./mcpClient.js";
 import { GeminiOrchestrator, type Msg, type Orchestrator } from "./orchestrator.js";
-import { RecorderError, canRecord, startRecording, type Recording } from "./recorder.js";
+import { ListenError, canListen, startListening } from "./listen.js";
+import { RecorderError, canRecord, startRecording } from "./recorder.js";
 import { canReplyFast, replyFromResults } from "./reply.js";
 import { ReplayOrchestrator, SCENES } from "./replay.js";
 import { SideCards } from "./sidecards.js";
 import { isGoodbye } from "./talk.js";
-import { isSpeaking, speak, stopSpeaking, transcribe } from "./voice.js";
+import { isSpeaking, speak, stopSpeaking, transcribe, useCloudVoice } from "./voice.js";
 
 const MAX_HOPS = 5;
 const BUDGET_MS = 500;
@@ -43,7 +44,10 @@ let brainConfigured = false;
 let history: Msg[] = [];
 let session: McpSession | null = null;
 let busy = false;
-let recording: Recording | null = null;
+/** The open microphone (browser recognition or the recorder), while one is listening. */
+let recording: { stop(): void; cancel(): void } | null = null;
+/** Voice input: the browser's own recognition (fast, live words) or the recorder + Gemini. */
+let listenWith: "browser" | "gemini" = canListen() ? "browser" : "gemini";
 let speakReplies = true;
 /** Conversation mode: after a spoken reply to a spoken turn, listen again for the answer (like a follow-up on a smart speaker). */
 let conversationMode = true;
@@ -61,8 +65,9 @@ const transcript = el("div", { class: "transcript", attrs: { "aria-live": "polit
 const hero = el("div", { class: "hero" }, [
   el("h1", {}, [document.createTextNode("Say it once. "), el("em", { text: "Daizee remembers." })]),
   el("p", {
-    text: "A simulated voice assistant calling a real memory service. Try a phrase below.",
+    text: "A simulated Alexa+ experience calling Daizee's real MCP server. Try a phrase below.",
   }),
+  el("p", { class: "invocation" }, [document.createTextNode("On a real device you'd say: "), el("q", { text: "Alexa, ask Daizee what I should eat for dinner." })]),
 ]);
 const modePill = el("span", { class: "pill", text: "" });
 const historyPill = el("span", { class: "pill", text: "" });
@@ -78,7 +83,7 @@ const actionBtn = el("button", { class: "action", attrs: { type: "button", "data
 ]);
 const listenLabel = el("span", { class: "listen-label", attrs: { "aria-live": "polite" }, text: "Listening…" });
 const composer = el("form", { class: "composer", attrs: { autocomplete: "off" } }, [input, listenLabel, level, actionBtn]);
-const fine = el("p", { class: "fineprint", text: "Demo data is fictional. What you say or type is processed by Gemini and shared with other visitors of this demo, so please don't enter real health details." });
+const fine = el("p", { class: "fineprint", text: "Demo data is fictional. Your voice is turned into text by your browser's speech service or by Gemini, what you say or type is processed by Gemini, and it is shared with other visitors of this demo, so please don't enter real health details." });
 
 const traceList = el("div", { class: "trace-list", attrs: { "aria-live": "polite", "aria-relevant": "additions" } });
 const traceEmpty = el("div", { class: "trace-empty", text: "No messages yet. Say something and every MCP message the assistant sends shows up here." });
@@ -130,7 +135,7 @@ function buildPage(): void {
       el("header", { class: "topbar" }, [
         el("div", { class: "brand" }, [
           el("strong", {}, [el("i"), document.createTextNode("Daizee")]),
-          el("small", { text: "Simulated voice assistant · not Alexa, not affiliated with Amazon, not certified" }),
+          el("small", { text: "Simulated Alexa+ experience · not affiliated with Amazon, not certified" }),
         ]),
         el("div", { class: "glass bar-group", attrs: { role: "group", "aria-label": "Move the demo clock forward" } }, [dayLabel, ...advanceBtns]),
         newConvoBtn,
@@ -207,7 +212,7 @@ function syncAction(): void {
   if (recording) return setAction("stop");
   if (busy) return setAction("wait");
   setAction(input.value.trim() ? "send" : "mic");
-  const micOk = canRecord() && brainConfigured;
+  const micOk = (canListen() || canRecord()) && brainConfigured;
   actionBtn.disabled = !input.value.trim() && !micOk;
   actionBtn.title = actionBtn.disabled
     ? !brainConfigured
@@ -338,6 +343,20 @@ function buildPopover(): void {
           fastReplies = v === "fast";
           addNote(fastReplies ? "Fast replies: one model call per turn when one tool runs, so answers arrive about twice as fast." : "Natural replies: a second model call rewrites each answer, which reads nicer but takes longer.");
           updatePills();
+        },
+      ),
+    ]),
+    el("div", { class: "row" }, [
+      el("span", { text: "Voice input" }),
+      seg<"browser" | "gemini">(
+        [
+          { value: "browser", label: "Browser", disabled: !canListen() },
+          { value: "gemini", label: "Gemini" },
+        ],
+        listenWith,
+        (v) => {
+          listenWith = v;
+          addNote(v === "browser" ? "Voice input: your browser's speech recognition (words appear as you talk)." : "Voice input: recorded, then transcribed by Gemini.");
         },
       ),
     ]),
@@ -597,8 +616,66 @@ const END_OF_SPEECH_MS = 1_000;
 const NO_SPEECH_MS = 8_000;
 const FOLLOW_UP_NO_SPEECH_MS = 6_000;
 
+function showListening(followUp: boolean, live: boolean): void {
+  listenLabel.textContent = followUp ? "Listening for your reply…" : "Listening… just talk";
+  composer.classList.add("recording");
+  composer.classList.toggle("asr", live);
+  syncAction();
+}
+function hideListening(): void {
+  recording = null;
+  composer.classList.remove("recording", "asr");
+  levels.fill(0);
+  paintLevels();
+  syncAction();
+}
+
+/** The browser's own recognition: words appear as you talk, no upload wait. */
+async function listenInBrowser(followUp: boolean): Promise<string> {
+  const l = startListening({
+    noSpeechMs: followUp ? FOLLOW_UP_NO_SPEECH_MS : NO_SPEECH_MS,
+    onPartial: (t) => {
+      listenLabel.textContent = t.length > 80 ? `…${t.slice(-80)}` : t;
+    },
+  });
+  recording = l;
+  showListening(followUp, true);
+  try {
+    return await l.done;
+  } finally {
+    hideListening();
+  }
+}
+
+/** The recorder: stops by itself when you stop talking, then Gemini transcribes. */
+async function recordAndTranscribe(followUp: boolean): Promise<string> {
+  const rec = await startRecording({ maxMs: 12_000, onLevel, endOnSilenceMs: END_OF_SPEECH_MS, noSpeechMs: followUp ? FOLLOW_UP_NO_SPEECH_MS : NO_SPEECH_MS });
+  recording = rec;
+  showListening(followUp, false);
+  let wav: Uint8Array;
+  try {
+    wav = await rec.done;
+  } finally {
+    hideListening();
+  }
+  addNote("Transcribing…");
+  const text = await transcribe(wav);
+  if (!text) addNote("I didn't catch that. Try again, or type.");
+  return text;
+}
+
+function captureProblem(err: unknown, followUp: boolean): string | null {
+  const code = err instanceof ListenError ? err.code : err instanceof RecorderError ? err.code : null;
+  const cancelled = (err instanceof ListenError && err.code === "cancelled") || (err instanceof RecorderError && err.message === "Recording cancelled.");
+  if (followUp && (cancelled || code === "no-speech" || code === "too-short")) return "Stopped listening. Tap the mic to talk again.";
+  if (cancelled) return null;
+  if (code === "no-speech") return "I didn't hear anything. Tap the mic and talk, or type.";
+  if (code === "permission-denied") return "Microphone access was blocked. Allow it in the address bar, or type instead.";
+  return err instanceof RecorderError ? micMessage(err) : err instanceof Error ? err.message : "Voice input failed.";
+}
+
 /**
- * One spoken turn: listen (it stops by itself when you stop talking), transcribe,
+ * One spoken turn: listen (it ends by itself when you stop talking), then
  * answer. With conversation mode on, a spoken reply is followed by listening
  * again, so you can just answer ("yes, forget it"). Saying "that's all" or
  * "stop", staying quiet, pressing Escape or typing ends it.
@@ -612,45 +689,28 @@ async function toggleMic(followUp = false): Promise<void> {
   if (busy || !session) return;
   setBusy(true); // nothing else may run while the mic is open or the audio is being transcribed
   setAction("wait");
-  let rec: Recording;
-  try {
-    rec = await startRecording({ maxMs: 12_000, onLevel, endOnSilenceMs: END_OF_SPEECH_MS, noSpeechMs: followUp ? FOLLOW_UP_NO_SPEECH_MS : NO_SPEECH_MS });
-  } catch (err) {
-    addNote(micMessage(err));
-    setBusy(false);
-    return;
-  }
-  recording = rec;
-  listenLabel.textContent = followUp ? "Listening for your reply…" : "Listening… just talk";
-  composer.classList.add("recording");
-  syncAction();
   let text = "";
-  let failed = false;
   try {
-    const wav = await rec.done;
-    recording = null;
-    composer.classList.remove("recording");
-    levels.fill(0);
-    paintLevels();
-    syncAction();
-    addNote("Transcribing…");
-    text = await transcribe(wav);
+    if (listenWith === "browser" && canListen()) {
+      try {
+        text = await listenInBrowser(followUp);
+      } catch (err) {
+        if (!(err instanceof ListenError && (err.code === "network" || err.code === "unsupported" || err.code === "failed"))) throw err;
+        // The browser's speech service is unreachable here: use Gemini from now on.
+        listenWith = "gemini";
+        addNote("The browser's speech service isn't reachable here, so Gemini will transcribe instead. Please say that again.");
+        text = await recordAndTranscribe(followUp);
+      }
+    } else {
+      text = await recordAndTranscribe(followUp);
+    }
   } catch (err) {
-    failed = true;
-    recording = null;
-    composer.classList.remove("recording");
-    levels.fill(0);
-    paintLevels();
-    const quietEnd = err instanceof RecorderError && (err.code === "no-speech" || err.code === "too-short" || err.message === "Recording cancelled.");
-    if (followUp && quietEnd) addNote("Stopped listening. Tap the mic to talk again.");
-    else if (err instanceof RecorderError && err.code === "no-speech") addNote("I didn't hear anything. Tap the mic and talk, or type.");
-    else if (!(err instanceof RecorderError && err.message === "Recording cancelled.")) addNote(micMessage(err));
+    hideListening();
+    const problem = captureProblem(err, followUp);
+    if (problem) addNote(problem);
   }
   setBusy(false);
-  if (!text) {
-    if (!failed) addNote("I didn't catch that. Try again, or type.");
-    return;
-  }
+  if (!text) return;
   if (isGoodbye(text)) {
     addMsg("user", text);
     addNote("Okay. Tap the mic whenever you want to talk again.");
@@ -733,13 +793,14 @@ async function main(): Promise<void> {
   try {
     const [u, brain] = await Promise.all([
       getJson<{ users: Array<{ id: string; name: string }> }>("/demo/users"),
-      getJson<{ configured: boolean; model: string | null }>("/brain/status").catch(() => ({ configured: false, model: null })),
+      getJson<{ configured: boolean; model: string | null; voice?: string | null }>("/brain/status").catch(() => ({ configured: false, model: null, voice: null })),
     ]);
     users = u.users;
     // Connected to the real app the users are the allowlisted ones (for example "demo"), not maya.
     if (users.length && !users.some((x) => x.id === userId)) userId = users[0]?.id ?? userId;
     brainModel = brain.model;
     brainConfigured = brain.configured;
+    useCloudVoice(Boolean(brain.voice));
     mode = brain.configured ? "live" : "replay";
     buildPopover();
     await connect();
@@ -747,7 +808,7 @@ async function main(): Promise<void> {
     await refreshPanels();
     if (canRecord() && brainConfigured) {
       const p = hero.querySelector("p");
-      if (p) p.textContent = "A simulated voice assistant calling a real memory service. Try a phrase below, or speak.";
+      if (p) p.textContent = "A simulated Alexa+ experience calling Daizee's real MCP server. Tap the mic and talk, or try a phrase below.";
     }
     addNote(
       mode === "live"
