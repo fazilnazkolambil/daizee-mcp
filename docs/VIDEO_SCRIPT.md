@@ -16,7 +16,7 @@
 - **On-screen type:** one short line, centred, with plenty of empty space around it.
 - **Music:** a sparse ambient piano or pad you have the rights to (for example the YouTube Audio Library; note the track name). It swells once, at the ending.
 - **Honesty rules:**
-  - Every character scene carries a small corner label: "Dramatization · AI-generated".
+  - Every character scene carries a small label in the **bottom-left**: "Dramatization · AI-generated". Keep the video tool's own ✦ watermark in the bottom-right. Don't remove it: it may be required by the tool's terms, and it backs up the label.
   - Product screens are always **real recordings**.
   - Every Daizee line in a character scene is the **product's actual reply** to that sentence, recorded from the demo. You may trim a long reply down to the sentences that matter in the audio; the full reply stays visible on the real insert.
 - **Never use:**
@@ -73,7 +73,7 @@ Paste each description word for word into every prompt for that person, so they 
 |---|---|---|---|
 | 0:29–0:30 | Black: **"Monday"** | none | none |
 | 0:30–0:39 | **M1 · Maya · London · Mon 7:05.** One child on her hip and the phone on the counter, Daizee's light pulsing. She asks without stopping. Lower-third: "Maya Collins · 34 · London". | **Maya:** "Daizee, what should I eat today?" **Daizee:** *(real reply)* | The demo: the `recall_what_you_know` pill and the answer. The phone: today's plan. |
-| 0:39–0:48 | **K1 · Kim · Seoul · Mon 22:45.** He zips the suitcase and talks to the phone on the bed. Lower-third: "Kim Jae-won · 30 · Seoul". | **Kim:** "Daizee, I'm going to Dubai for two weeks. Adjust my plans accordingly." **Daizee:** "Got it, I'll remember that for 14 more days." | The demo: the memory card "going to Dubai for two weeks · 14 days left". |
+| 0:39–0:48 | **K1 · Kim · Seoul · Mon 18:40.** Dusk light. He zips the suitcase and talks to the phone on the bed. Lower-third: "Kim Jae-won · 30 · Seoul". | **Kim:** "Daizee, I'm going to Dubai for two weeks. Adjust my plans accordingly." **Daizee:** "Got it, I'll remember that for 14 more days." | The demo: the memory card "going to Dubai for two weeks · 14 days left". |
 | 0:48–0:56 | **N1 · Natasha · Atlanta · Mon 12:30.** Lunch at her desk. She just talks: no camera, no search. Lower-third: "Natasha Brooks · 27 · Atlanta". | **Natasha:** "I had a quinoa bowl with chicken for lunch." **Daizee:** *(real reply)* | The phone: the meal appears and the calories update. Text: **"No searching. No photos."** |
 
 **Round 2 · "Wednesday": it remembers your life (0:56–1:28)**
@@ -91,7 +91,7 @@ Paste each description word for word into every prompt for that person, so they 
 |---|---|---|---|
 | 1:28–1:29 | Black: **"Day 13"** | none | none |
 | 1:29–1:33 | **M3 · Maya · London · 18:30.** Yoga on the living-room floor, her kids copying her poses, laughing. | none (music) | none |
-| 1:33–1:41 | **K3 · Kim · Dubai · 21:00.** At the airport gate, bag over his shoulder. | **Kim:** "How am I doing today?" **Daizee:** "…Your note 'going to Dubai for two weeks' ends in 2 days. Is it still true?" | The demo (**labelled "demo data"**): the check-in card. Text: **"It adapts. Then it lets go."** |
+| 1:33–1:41 | **K3 · Kim · Dubai · 21:00.** At the airport, bag over his shoulder. He raises his wrist and checks his smartwatch (about 3.4 to 4.2 s in the clip), and that's when he says his line. | **Kim:** "How am I doing today?" **Daizee:** "…Your note 'going to Dubai for two weeks' ends in 2 days. Is it still true?" | The demo (**labelled "demo data"**): the check-in card. Text: **"It adapts. Then it lets go."** |
 | 1:41–1:45 | **N3 · Natasha · Atlanta · 19:40.** Cooking a peanut-free dinner with a friend, relaxed. | none (music) | none |
 
 ### Part 3 · How it works (1:45–2:35): real screen recordings only
@@ -201,7 +201,34 @@ Run `npm run demo` and record from `http://localhost:8787`. The startup line mus
 
 ---
 
-## 7. Schedule (deadline Friday 12:00 PT)
+## 7. Edit decisions for the AI clips (reviewed Oct 21)
+
+All 18 clips are in: 6.0 s each, 1280×720, 24 fps, with generated audio. The characters stay consistent across clips, and each person's palette holds. Export the film at 1080p; the 720p clips upscale fine.
+
+**Use as is:** H1, H2, H4_maya, H4_kim, H4_natasha, K1, N1, N2, M3, E1, E2.
+
+| Clip | What's wrong | What to do |
+|---|---|---|
+| **M1** | At **about 4.0 s** it turns into an AI-invented app screen, with a gibberish "today's meal plan" ("Healthy food with Freace, hill freeks", "Boeani plan"). It also has baked-in text "7:05 AM MONDAY" at top-left. | Use **0 to 3.9 s** only, then cut straight to the **real** demo insert. Cover the baked text with our corner tag (a solid or frosted box). |
+| **E3** | At **about 4.0 s** it turns into a white-framed collage of three photos. | Use **0 to 3.9 s** only. |
+| **K3** | From **about 4.6 s** Kim's eyes close and his mouth falls open. | Use **0 to 4.4 s**. |
+| **H3** | Baked-in, **misspelled** caption "Atlansha Brooks · 7:15 PM" at top-left. From about 3 s the phone shows an AI-invented food app. | Cover the caption with our corner tag. Replace the phone screen with the **real** DayZer0 food search, either composited onto the phone or as a cut to it full screen. Or regenerate (see below). |
+| **M2** | Baked-in "MAYA COLLINS · Wednesday, 6:50 AM" at top-left. | Cover it with our corner tag, in a box big enough to hide it. |
+| **K2** | Baked-in "KIM JAE-WON · 6:10 AM", which changes to "KIM JAEWON" partway through. | Same as M2. |
+| **N3** *(optional)* | Natasha's friend wears the same olive athleisure, so they look like twins. | Regenerate with the friend in a different colour, or accept it. |
+
+**Regenerate if you have time** (H3, N3, and M1 if you'd rather not trim it). Add this to the end of the prompt:
+
+> *no on-screen text, no captions, no titles, no app interface or readable screen content; phone and watch screens show only a soft glowing blue dot.*
+
+**Audio rules for the AI clips:**
+- **Speech:** keep a clip's own generated speech only if it says the **exact** script line, with matching lip movement. Otherwise mute it and dub the line, with one consistent voice per person.
+- **Music:** **mute any generated music.** M3, N3, E1 and E3 have steady sound, which is likely a music bed. Use only your one licensed track.
+- **Room sound:** keep it low under the dialogue (kitchen, city hum, the airport).
+
+**Clip lengths:** 6 s fits each slot together with its 2 to 3 s real insert. For N2's 12 s slot, hold the real insert while Daizee's reply plays; don't slow the AI clip down.
+
+## 8. Schedule (deadline Friday 12:00 PT)
 
 - **Today:**
   - Create the accounts and do the dry run.
