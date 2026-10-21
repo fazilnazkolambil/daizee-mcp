@@ -133,6 +133,29 @@ describe("memory across a fresh conversation, and over time", () => {
     expect(out.memories.length).toBeLessThanOrEqual(10);
   });
 
+  it("files a diet or allergy under its safety category even when the assistant picks another", async () => {
+    const { svc } = setup();
+    await svc.remember("sam", { category: "food_preference", text: "vegetarian" });
+    await svc.remember("sam", { category: "habit", text: "I don't eat pork" });
+    await svc.remember("sam", { category: "food_preference", text: "loves beef curry" });
+    const byText = Object.fromEntries((await svc.recall("sam")).memories.map((m) => [m.text, m.category]));
+    expect(byText["vegetarian"]).toBe("constraint");
+    expect(byText["I don't eat pork"]).toBe("constraint");
+    expect(byText["loves beef curry"]).toBe("food_preference"); // liking a food is not a diet
+    const meal = await svc.logMeal("sam", { mealType: "lunch", items: [{ name: "chicken curry" }] });
+    expect(meal.safetyFlags.length).toBeGreaterThan(0);
+  });
+
+  it("never logs a 'food' that is a meal word or a number (a misheard 'ate five eggs' arrives as '585 x')", async () => {
+    const { svc } = setup();
+    for (const name of ["breakfast", "585", "x", "5 x", "Dinner"]) {
+      await expect(svc.logMeal("sam", { mealType: "breakfast", items: [{ name, calories: 585 }] })).rejects.toThrow(/not a food.*ask the user/s);
+    }
+    expect((await svc.dayProgress("sam")).eaten.calories).toBe(0);
+    const ok = await svc.logMeal("sam", { mealType: "breakfast", items: [{ name: "boiled egg", quantity: 5 }] });
+    expect(ok.spoken).toMatch(/Logged your breakfast/);
+  });
+
   it("finds a note to forget by its real words, not by filler ('nothing like this' is not 'likes paneer')", async () => {
     const { svc } = setup();
     expect((await svc.resolve("maya", { query: "nothing like this" })).outcome).toBe("not_found");

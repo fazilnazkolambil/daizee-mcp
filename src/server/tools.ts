@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { MEMORY_CATEGORIES } from "../memory/index.js";
-import { DaizeeService, UserNotFoundError } from "./service.js";
+import { DaizeeService, NeedsFoodError, UserNotFoundError } from "./service.js";
 
 /**
  * The seven actions Alexa+ (or any MCP assistant) can call.
@@ -58,6 +58,7 @@ async function run(fn: () => Promise<{ spoken: string } & Record<string, unknown
     return ok(await fn());
   } catch (err) {
     if (err instanceof UserNotFoundError) return fail(err.message);
+    if (err instanceof NeedsFoodError) return fail(err.message);
     return fail("Something went wrong on my side. Please try again.");
   }
 }

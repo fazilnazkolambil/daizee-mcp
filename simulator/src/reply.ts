@@ -53,5 +53,6 @@ export function canReplyFast(results: readonly ToolResultLike[], userText = ""):
   if (results.length !== 1) return false;
   if (asksSomething(userText)) return false;
   const only = results[0] as ToolResultLike;
+  if ((only.output as { isError?: unknown } | null)?.isError) return false; // the model should explain or ask, not read the error out
   return ACTION_TOOLS.has(only.name ?? "") && sentenceOf(only) !== "";
 }

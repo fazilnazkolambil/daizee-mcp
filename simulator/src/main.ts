@@ -48,6 +48,8 @@ let busy = false;
 let recording: { stop(): void; cancel(): void } | null = null;
 /** Voice input: the browser's own recognition (fast, live words) or the recorder + Gemini. */
 let listenWith: "browser" | "gemini" = canListen() ? "browser" : "gemini";
+/** Dish names and health terms from the server, used to choose between speech-recognition guesses. */
+let vocabulary: string[] = [];
 let speakReplies = true;
 /** Conversation mode: after a spoken reply to a spoken turn, listen again for the answer (like a follow-up on a smart speaker). */
 let conversationMode = true;
@@ -633,6 +635,7 @@ function hideListening(): void {
 /** The browser's own recognition: words appear as you talk, no upload wait. */
 async function listenInBrowser(followUp: boolean): Promise<string> {
   const l = startListening({
+    vocabulary,
     noSpeechMs: followUp ? FOLLOW_UP_NO_SPEECH_MS : NO_SPEECH_MS,
     onPartial: (t) => {
       listenLabel.textContent = t.length > 80 ? `…${t.slice(-80)}` : t;
@@ -793,7 +796,7 @@ async function main(): Promise<void> {
   try {
     const [u, brain] = await Promise.all([
       getJson<{ users: Array<{ id: string; name: string }> }>("/demo/users"),
-      getJson<{ configured: boolean; model: string | null; voice?: string | null }>("/brain/status").catch(() => ({ configured: false, model: null, voice: null })),
+      getJson<{ configured: boolean; model: string | null; voice?: string | null; vocabulary?: string[] }>("/brain/status").catch(() => ({ configured: false, model: null, voice: null, vocabulary: [] })),
     ]);
     users = u.users;
     // Connected to the real app the users are the allowlisted ones (for example "demo"), not maya.
@@ -801,6 +804,7 @@ async function main(): Promise<void> {
     brainModel = brain.model;
     brainConfigured = brain.configured;
     useCloudVoice(Boolean(brain.voice));
+    vocabulary = brain.vocabulary ?? [];
     mode = brain.configured ? "live" : "replay";
     buildPopover();
     await connect();

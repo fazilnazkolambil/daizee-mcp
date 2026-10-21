@@ -101,6 +101,24 @@ export function checkMeal(params: {
  * notes matter, and only those that match a rule in the keyword table. Anything
  * else is saved but NOT checked, and the user should be told so.
  */
+/**
+ * The safety category a note must have, whatever the assistant picked: a diet
+ * the rule table knows ("vegetarian") is a constraint, and an "allergic to ..."
+ * note is an allergy, so the meal check never silently skips it. Null when the
+ * note is not about safety.
+ */
+const SELF_DIETS = new Set(["vegetarian", "vegan"]);
+const AVOID_WORDS = /\b(no|not|never|don'?t|doesn'?t|can'?t|won'?t|avoid|avoids|without|stopped|quit|halal|kosher)\b/i;
+
+export function safetyCategoryFor(text: string, rules: readonly AllergenRule[]): "allergy" | "constraint" | null {
+  const t = tokens(text);
+  if (t.some((w) => /^allerg/.test(w))) return "allergy";
+  const avoids = AVOID_WORDS.test(text);
+  // "vegetarian" or "vegan" is a diet by itself; a food ("pork") only with a no/avoid ("I love pork" is a preference).
+  if (rules.some((r) => r.kind === "diet" && anyTerm(t, r.memoryTerms) && (SELF_DIETS.has(r.key) || avoids))) return "constraint";
+  return null;
+}
+
 export function mealCheckCoverage(
   memory: { text: string; category: string },
   rules: readonly AllergenRule[],

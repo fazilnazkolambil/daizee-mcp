@@ -91,6 +91,20 @@ const CASES: Case[] = [
     ],
   },
   {
+    id: "misheard-eggs", user: "sam", freshConversation: true, say: ["585 x for breakfast"],
+    checks: [
+      {
+        label: "logs eggs, or asks; never a food called 'breakfast' or a number",
+        ok: (c, r) => {
+          const meals = used(c, "log_meal").filter((x) => !x.isError);
+          const names = meals.flatMap((x) => ((x.args.items as Array<{ name: string }>) ?? []).map((i) => String(i.name).toLowerCase()));
+          if (names.length) return names.every((n) => /egg/.test(n));
+          return /\?/.test(r);
+        },
+      },
+    ],
+  },
+  {
     id: "pad-thai-flag", user: "sam", freshConversation: true, say: ["Log pad thai for dinner."],
     checks: [
       { label: "log_meal as dinner", ok: (c) => used(c, "log_meal").some((x) => x.args.mealType === "dinner") },
@@ -126,7 +140,8 @@ const CASES: Case[] = [
   },
   {
     id: "teach-diet", user: "sam", say: ["I'm vegetarian."],
-    checks: [{ label: "remember_about_user, category constraint", ok: (c) => used(c, "remember_about_user").some((x) => x.args.category === "constraint" && /vegetarian/i.test(String(x.args.text))) }],
+    // What protects the user is what was SAVED: the service files a known diet as a constraint even if the model picks another category.
+    checks: [{ label: "saved as a constraint (diet)", ok: (c) => used(c, "remember_about_user").some((x) => /vegetarian/i.test(String(x.args.text)) && (x.output?.memory as { category?: string } | undefined)?.category === "constraint") }],
   },
   {
     id: "diet-flag", user: "sam", freshConversation: true, say: ["Log chicken curry for lunch."],
@@ -196,6 +211,7 @@ interface CaseResult {
   passed: boolean;
   failures: string[];
   calls: string[];
+  debugCalls?: Array<{ name: string; args: Record<string, unknown> }>;
   reply: string;
   latenciesMs: number[];
   /** Per spoken turn: model time + tool time (waits for the rate limit are NOT counted). */
@@ -232,7 +248,8 @@ async function runCase(c: Case, client: Client): Promise<CaseResult> {
           const t0 = performance.now();
           const r = await client.callTool({ name: call.name, arguments: call.args });
           turnTime += performance.now() - t0;
-          const output = r.isError ? { isError: true } : (r.structuredContent as Record<string, unknown> | undefined);
+          const errText = ((r.content as Array<{ type: string; text?: string }> | undefined) ?? []).map((x) => x.text ?? "").join(" ");
+          const output = r.isError ? { isError: true, message: errText } : (r.structuredContent as Record<string, unknown> | undefined);
           calls.push({ name: call.name, args: call.args, output, isError: Boolean(r.isError) });
           results.push({ id: call.id, name: call.name, output: output ?? {} });
         }
@@ -253,7 +270,7 @@ async function runCase(c: Case, client: Client): Promise<CaseResult> {
   }
 
   const failures = c.checks.filter((k) => !k.ok(calls, reply)).map((k) => k.label);
-  return { id: c.id, passed: failures.length === 0, failures, calls: calls.map((x) => x.name), reply, latenciesMs, turnMs, inputTokens, outputTokens };
+  return { id: c.id, passed: failures.length === 0, failures, calls: calls.map((x) => x.name), debugCalls: calls.map((x) => ({ name: x.name, args: x.args })), reply, latenciesMs, turnMs, inputTokens, outputTokens };
 }
 
 function percentile(values: number[], p: number): number {
@@ -273,7 +290,9 @@ async function main(): Promise<void> {
   const results: CaseResult[] = [];
   let client: Client | null = null;
   let currentUser = "";
-  for (const c of CASES) {
+  // EVAL_ONLY=id1,id2 runs just those cases (a partial run never writes the report).
+  const only = (process.env.EVAL_ONLY ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+  for (const c of only.length ? CASES.filter((x) => only.includes(x.id)) : CASES) {
     if (!client || c.freshConversation || c.user !== currentUser) {
       await client?.close();
       client = await connect(c.user);
@@ -286,6 +305,8 @@ async function main(): Promise<void> {
     }
     const r = results[results.length - 1]!;
     console.log(`${r.passed ? "PASS" : "FAIL"}  ${r.id.padEnd(18)} tools=[${r.calls.join(", ")}]${r.failures.length ? "  missing: " + r.failures.join("; ") : ""}${r.error ? "  error: " + r.error : ""}`);
+    // EVAL_DEBUG=1 shows what a failed case actually called and said.
+    if (process.env.EVAL_DEBUG === "1" && !r.passed) console.log(JSON.stringify({ calls: r.debugCalls, reply: r.reply }, null, 2));
   }
   await client?.close();
 
@@ -300,6 +321,10 @@ async function main(): Promise<void> {
   const turnCount = turns.length;
   console.log(`\n${passed}/${results.length} cases passed. model=${status.model}  mode=${FAST ? "fast" : "natural"}  steps=${steps}  p50=${percentile(lat, 50).toFixed(0)}ms  p95=${percentile(lat, 95).toFixed(0)}ms  avg turn=${(avgTurnMs / 1000).toFixed(2)}s  tokens in=${inTok} out=${outTok}`);
 
+  if (only.length) {
+    console.log("Partial run (EVAL_ONLY): docs/EVAL.md was NOT updated.");
+    return;
+  }
   if (errored > 0) {
     // A run with infrastructure errors says nothing about tool choice, so write no report.
     console.error(`${errored} case(s) hit errors (not wrong answers). docs/EVAL.md was NOT updated.`);

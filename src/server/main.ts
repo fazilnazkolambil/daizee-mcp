@@ -45,7 +45,7 @@ export function buildApp(
     vocabulary: [
       ...data.dishes.flatMap((d) => [d.name, ...d.aliases]),
       ...data.rules.flatMap((r) => r.memoryTerms),
-      "log", "breakfast", "lunch", "dinner", "snack", "allergic", "knee", "sore", "kilos", "calories", "forget", "remember",
+      "log", "breakfast", "lunch", "dinner", "snack", "egg", "eggs", "ate", "allergic", "knee", "sore", "kilos", "calories", "forget", "remember",
     ],
   });
   return { handler, service, store, clock };

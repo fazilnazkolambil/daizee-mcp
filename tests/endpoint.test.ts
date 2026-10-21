@@ -64,7 +64,7 @@ describe("EndpointDetector (hands-free end of speech)", () => {
 });
 
 describe("voice helpers", async () => {
-  const { chooseVoice, isGoodbye } = await import("../simulator/src/talk.js");
+  const { chooseVoice, isGoodbye, pickAlternative } = await import("../simulator/src/talk.js");
 
   it("prefers a natural Indian-English voice, then well-known clear ones, then any English", () => {
     const v = (name: string, lang: string, localService = true) => ({ name, lang, localService });
@@ -73,6 +73,14 @@ describe("voice helpers", async () => {
     expect(chooseVoice([v("Thomas", "fr-FR"), v("Some Voice", "en_GB")])?.name).toBe("Some Voice");
     expect(chooseVoice([v("Thomas", "fr-FR")])).toBeUndefined();
     expect(chooseVoice([])).toBeUndefined();
+  });
+
+  it("picks the speech guess that uses the service's words ('ate 5 eggs', not '585 x')", () => {
+    const vocab = ["boiled egg", "egg", "eggs", "ate", "breakfast", "idli"];
+    expect(pickAlternative(["585 x for breakfast", "I ate 5 eggs for breakfast"], vocab)).toBe("I ate 5 eggs for breakfast");
+    expect(pickAlternative(["I had two idlis", "I had to idlis"], vocab)).toBe("I had two idlis"); // tie: the recognizer's first guess
+    expect(pickAlternative(["What should I eat for dinner?"], vocab)).toBe("What should I eat for dinner?");
+    expect(pickAlternative([], vocab)).toBe("");
   });
 
   it("recognises ways of ending a spoken conversation, and nothing else", () => {

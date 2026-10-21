@@ -16,7 +16,7 @@ import { dayKeyFor } from "../store/dayKey.js";
 import { newId } from "../store/inMemoryStore.js";
 import type { Meal, MealItem, MealType, Store, Targets } from "../store/types.js";
 import type { AllergenRule, Dish } from "./data.js";
-import { checkMeal, matchDish, mealCheckCoverage, tokens } from "./safety.js";
+import { safetyCategoryFor, checkMeal, matchDish, mealCheckCoverage, tokens } from "./safety.js";
 import { lifespan, MAX_SPOKEN_WORDS, plain, plural, round, spoken } from "./spoken.js";
 
 /**
@@ -42,6 +42,22 @@ const BIG_WEIGHT_JUMP_KG = 5;
 const MEAL_SOURCE = "alexa";
 /** A "forget" must be asked about before it can be confirmed, and the yes expires. */
 const CONFIRM_WINDOW_MS = 10 * 60 * 1000;
+
+/** A meal item that names no food ("breakfast", "585", "x"): usually a misheard voice turn. */
+export class NeedsFoodError extends Error {
+  constructor(heard: string) {
+    super(
+      `"${heard}" is not a food, so nothing was logged. Speech recognition may have misheard (for example "ate five eggs" heard as "8 5 x"): ask the user what they ate.`,
+    );
+    this.name = "NeedsFoodError";
+  }
+}
+
+const NOT_A_FOOD = new Set(["breakfast", "lunch", "dinner", "snack", "snacks", "meal", "food", "something", "stuff", "x", "it", "that", "this"]);
+function isNotAFood(name: string): boolean {
+  const t = normalizeText(name);
+  return t.length < 2 || NOT_A_FOOD.has(t) || /^[\d\s.,x×*]+$/.test(t);
+}
 
 export class UserNotFoundError extends Error {
   constructor(userId: string) {
@@ -123,6 +139,8 @@ export class DaizeeService {
     input: { mealType: MealType; items: MealItemInput[]; idempotencyKey?: string },
   ) {
     const profile = await this.profile(userId);
+    const bad = input.items.find((it) => isNotAFood(it.name));
+    if (bad) throw new NeedsFoodError(bad.name);
     const now = this.clock.now();
     const dayKey = dayKeyFor(now, profile.timezone);
     const items = input.items.map((it) => this.resolveItem(it));
@@ -222,6 +240,9 @@ export class DaizeeService {
     await this.profile(userId);
     const now = this.clock.now();
     const text = input.text.trim().replace(/\s+/g, " ");
+    // Safety facts keep their safety category even if the assistant filed them
+    // elsewhere ("vegetarian" as a food preference would skip the diet check).
+    const category: MemoryCategory = safetyCategoryFor(text, this.rules) ?? input.category;
     const ttlDays =
       input.durationDays !== undefined && input.durationDays !== null
         ? input.durationDays
@@ -229,7 +250,7 @@ export class DaizeeService {
     const known = await this.activeMemories(userId);
     const plan = planOps({
       known,
-      ops: [{ op: "add", text, category: input.category, ttlDays, confidence: input.confidence ?? 0.9 }],
+      ops: [{ op: "add", text, category, ttlDays, confidence: input.confidence ?? 0.9 }],
       nowMs: now,
       newId: () => newId("mem"),
     });
@@ -257,7 +278,7 @@ export class DaizeeService {
     const saved = (await this.store.listMemories(userId)).find((m) => m.id === id);
     const view = saved ? toView(saved, now) : null;
     // Be upfront when a safety note cannot be matched against meals automatically.
-    const mealCheck = mealCheckCoverage({ text, category: input.category }, this.rules);
+    const mealCheck = mealCheckCoverage({ text, category }, this.rules);
     return {
       outcome: (refreshed ? "refreshed" : "saved") as "refreshed" | "saved",
       memory: view,

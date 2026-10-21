@@ -211,7 +211,7 @@ export function createApp(opts: AppOptions): Handler {
 
       // The demo page's assistant brain: demo mode only, and never the MCP server.
       if (opts.demo && url.pathname === "/brain/status" && method === "GET") {
-        sendJson(res, 200, { configured: Boolean(opts.brain), model: opts.brain?.model ?? null, voice: opts.tts ? opts.tts.voice : null });
+        sendJson(res, 200, { configured: Boolean(opts.brain), model: opts.brain?.model ?? null, voice: opts.tts ? opts.tts.voice : null, vocabulary: opts.vocabulary ?? [] });
         return;
       }
       if (opts.demo && url.pathname === "/brain/step") {

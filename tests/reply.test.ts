@@ -30,6 +30,9 @@ describe("replyFromResults / canReplyFast (fast replies)", () => {
     expect(canReplyFast(saved, "I'm going to Kerala for 1 week")).toBe(true);
     expect(canReplyFast(saved, "I'm allergic to peanuts, and my left knee is sore this week.")).toBe(true);
   });
+  it("lets the model explain or ask after a tool error, instead of reading the error out", () => {
+    expect(canReplyFast([{ name: "log_meal", output: { isError: true, message: "\"breakfast\" is not a food, so nothing was logged." } }], "585 x for breakfast")).toBe(false);
+  });
   it("lets the model answer after a lookup ('what can I eat for dinner?' recalls first)", () => {
     for (const name of ["recall_what_you_know", "get_day_progress", "get_today_plan"]) {
       expect(canReplyFast([{ name, output: { spoken: "I know 5 things." } }])).toBe(false);

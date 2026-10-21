@@ -9,6 +9,8 @@
  * this is missing or fails with a network error.
  */
 
+import { pickAlternative } from "./talk.js";
+
 export type ListenErrorCode = "unsupported" | "no-speech" | "permission-denied" | "network" | "cancelled" | "failed";
 
 export class ListenError extends Error {
@@ -32,6 +34,8 @@ export interface Listening {
 
 export interface ListenOptions {
   lang?: string;
+  /** The service's own words: among several guesses, the one using them wins ("ate 5 eggs" over "8 5 x"). */
+  vocabulary?: readonly string[];
   /** Called with the words heard so far, while the person is talking. */
   onPartial?: (text: string) => void;
   /** Give up with "no-speech" if nothing is heard for this long. */
@@ -68,7 +72,7 @@ export function startListening(opts: ListenOptions = {}): Listening {
   rec.lang = opts.lang ?? "en-IN";
   rec.interimResults = true;
   rec.continuous = false; // the browser ends the turn when the person stops talking
-  rec.maxAlternatives = 1;
+  rec.maxAlternatives = 5;
 
   let finalText = "";
   let partial = "";
@@ -96,11 +100,13 @@ export function startListening(opts: ListenOptions = {}): Listening {
     let interim = "";
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const r = e.results[i];
-      const text = r?.[0]?.transcript ?? "";
-      if (r?.isFinal) finalText += text;
-      else interim += text;
+      if (!r) continue;
+      if (r.isFinal) {
+        const guesses = Array.from({ length: r.length }, (_, k) => r[k]?.transcript ?? "").filter(Boolean);
+        finalText += `${finalText ? " " : ""}${pickAlternative(guesses, opts.vocabulary ?? [])}`;
+      } else interim += r[0]?.transcript ?? "";
     }
-    partial = (finalText + interim).trim();
+    partial = `${finalText} ${interim}`.trim();
     if (partial) opts.onPartial?.(partial);
   };
   rec.onerror = (e) => {
