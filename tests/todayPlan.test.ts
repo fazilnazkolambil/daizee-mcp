@@ -28,6 +28,15 @@ describe("get_today_plan (in-memory demo users)", () => {
     voiceSafe(out.spoken);
   });
 
+  it("brings the user's current notes, so the plan can fit a trip or an injury", async () => {
+    const { service } = buildApp();
+    await service.remember("sam", { category: "goal", text: "travelling to Dubai for two weeks", durationDays: 14 });
+    const out = await service.todayPlan("sam");
+    expect(out.notes.map((n) => n.text)).toContain("travelling to Dubai for two weeks");
+    expect(out.spoken).toMatch(/Keep in mind: travelling to Dubai for two weeks\./);
+    voiceSafe(out.spoken);
+  });
+
   it("is read only: nothing about the day changes", async () => {
     const { service } = buildApp();
     const before = await service.dayProgress("maya");

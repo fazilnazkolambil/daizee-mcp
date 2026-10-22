@@ -91,7 +91,7 @@ export function registerTools(server: McpServer, service: DaizeeService, userId:
     {
       title: "What should I focus on today",
       description:
-        "Today's focus and eat/move/recover steps from the Daizee app, plus any afternoon nudge. Use for 'what should I focus on today?' or 'what's my plan?'. Read only.",
+        "Today's focus, eat/move/recover steps, any afternoon nudge, and current notes (trip, injury, diet) to fit the plan to. For 'what should I focus on today?'. Read only.",
       outputSchema: {
         dayKey: z.string(),
         hasPlan: z.boolean(),
@@ -99,6 +99,7 @@ export function registerTools(server: McpServer, service: DaizeeService, userId:
         plan: z.object({ eat: z.string(), move: z.string(), recover: z.string() }).nullable(),
         summary: z.string(),
         afternoon: z.object({ headline: z.string(), body: z.string() }).nullable(),
+        notes: z.array(memoryView).describe("What is going on in the user's life now: fit the plan to these."),
         spoken: spokenField,
       },
       annotations: { readOnlyHint: true, idempotentHint: true, destructiveHint: false, openWorldHint: false },

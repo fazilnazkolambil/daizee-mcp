@@ -417,8 +417,16 @@ export class DaizeeService {
 
   async todayPlan(userId: string) {
     const profile = await this.profile(userId);
-    const dayKey = dayKeyFor(this.clock.now(), profile.timezone);
+    const now = this.clock.now();
+    const dayKey = dayKeyFor(now, profile.timezone);
     const plan = await this.store.getTodayPlan(userId, dayKey);
+    // What is going on in the user's life right now (a trip, a sore knee, a diet), so the
+    // assistant can fit the plan to it. Allergies and diets first, then the short-lived ones.
+    const notes = (await this.activeMemories(userId))
+      .filter((m) => PLAN_NOTE_CATEGORIES.has(m.category))
+      .slice(0, 4)
+      .map((m) => toView(m, now));
+    const lifeNote = notes.find((n) => n.category === "goal" || n.category === "symptom");
     if (!plan) {
       return {
         dayKey,
@@ -427,6 +435,7 @@ export class DaizeeService {
         plan: null,
         summary: "",
         afternoon: null,
+        notes,
         spoken: spoken("There's no plan for today yet. Open the DayZer0 app and Daizee will make one."),
       };
     }
@@ -440,7 +449,11 @@ export class DaizeeService {
         steps?.move && `Move: ${sentence(steps.move)}`,
         steps?.recover && `Recover: ${sentence(steps.recover)}`,
       ],
-      [plan.afternoon && `This afternoon: ${sentence(plan.afternoon.headline)}`, plan.focus && sentence(plan.focus.why)],
+      [
+        lifeNote && `Keep in mind: ${sentence(lifeNote.text)}`,
+        plan.afternoon && `This afternoon: ${sentence(plan.afternoon.headline)}`,
+        plan.focus && sentence(plan.focus.why),
+      ],
     );
     return {
       dayKey,
@@ -449,12 +462,16 @@ export class DaizeeService {
       plan: plan.plan,
       summary: plan.summary,
       afternoon: plan.afternoon,
+      notes,
       spoken: spokenText,
     };
   }
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────
+
+/** Notes that change what today's plan should look like. */
+const PLAN_NOTE_CATEGORIES = new Set(["allergy", "constraint", "symptom", "goal"]);
 
 /** Joins the required parts, then adds optional ones only while the reply stays short. */
 function fitWords(required: Array<string | false | null | undefined>, optional: Array<string | false | null | undefined>): string {
