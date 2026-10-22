@@ -57,37 +57,32 @@ Paste each description word for word into every prompt for that person, so they 
 
 ## 4. Timeline
 
-### Part A · The stories (0:00–1:05): AI clips, no presenter
+### Part A · The stories (0:00–1:40): AI clips, no presenter — DONE
 
-Cinematic and quiet: subtitles, music, and Daizee's **real** voice and replies (recorded from the demo). Corner tags on every scene, plus "Dramatization · AI-generated" in the bottom-left.
+Rendered in reel-studio (`content/daizee-demo/reel.ts` → `out/daizee-demo/video.mp4`): the hook, Maya, Kim and Natasha with Daizee's **real** replies (captured from the demo on fictional data, in its real voice) answering over the frozen frame of each scene, then the three of them together and a closing card. Music: "Inspirational" by Paul Yudin (Pixabay), kept low and ducked under every line.
 
-| Time | Clips | Words (subtitles / on-screen) |
-|---|---|---|
-| 0:00–0:18 | H1 (Maya at the fridge) → H2 (Kim packing; streak warning) → H3 (Natasha photographing her plate, then the **real** manual food-search recording) → H4 triptych | Maya: "What do I even eat today?" · Text: **"Staying healthy became a second job."** |
-| 0:18–0:22 | Black | **"What if you could just talk?"** → **DAIZEE** · "Just talk. It remembers your life." |
-| 0:22–0:34 | **Maya:** M1 (0–3.9 s) → M2 → M3 | Maya: "Daizee, what should I eat today?" → Daizee *(real reply, one sentence)* · Text: "Same question. A fresh answer, every day." |
-| 0:34–0:46 | **Kim:** K1 → K2 → K3 (0–4.4 s) | Kim: "Daizee, I'm going to Dubai for two weeks. Adjust my plans accordingly." → Daizee: "Got it, I'll remember that for 14 more days." · Text: "It adapts. Then it lets go." |
-| 0:46–0:58 | **Natasha:** N1 → N2 → N3 | Natasha: "I ate pad thai." → Daizee: "Heads up: pad thai may contain peanuts. Your note says allergic to peanuts." · Text: "She told it once. It never forgot." |
-| 0:58–1:05 | E1 → E2 → E3 (0–3.9 s), then black | **"Just talk. It remembers your life."** |
+### Part B · Fazil explains (1:40–2:57, about 77 s)
 
-### Part B · Fazil explains (1:05–2:54)
+**The product was recorded first, so the words fit what Daizee really said.** Four takes from the real demo (fictional data, live Gemini brain, typed lines because headless Chrome has no microphone) are in reel-studio `content/daizee-demo/screen/`: `take-memory`, `take-lifespan`, `take-travel`, `take-misheard`, each with an `.events.json` of every moment and Daizee's reply audio.
 
-Shoot it as **you on camera** for the human moments, and your **screen** (with your face small in a corner) for the demo. Speak to the camera like you're explaining to a friend, at your normal pace. It's about 205 words in about 109 s, at most 2.4 words a second in any section, unhurried, with the demo running underneath.
+**What you record:** only your voice for the screen parts (B2–B4, a voice-over, any quiet room, phone or USB mic), and three short lines to camera (B1, B5, B6). About 150 words at an easy pace (no section faster than 2.4 words a second, counting Daizee's audio). Daizee's own voice plays in the gaps.
 
-| Time | Show | Say (word-for-word; contractions and pauses are fine) |
-|---|---|---|
-| **B1** 1:05–1:20 | **You on camera**, seated, warm light, the phone with DayZer0 in your hand. | "Hi, I'm Fazil. I built DayZer0, a health-coach app that's live on Android, and its coach is Daizee. What you just saw is where Daizee is going. For this hackathon, I built that part for real." |
-| **B2** 1:20–1:50 | **Screen.** The demo page, with the phone (scrcpy) beside it. Tap the mic and say *"I'm allergic to peanuts."* The live words appear, the `remember_about_user` pill shows, and Daizee speaks. Press **New conversation**, then say *"Log pad thai for dinner."* The red peanut banner shows. **Cut to the phone:** the meal lands in DayZer0. | "This is a simulated voice assistant, standing in for Alexa+. I tell it about my allergy once. Now watch: I start a brand-new conversation, so the assistant remembers nothing. And Daizee still catches it. The meal even lands in my real app." |
-| **B3** 1:50–2:15 | **Screen.** Zoom into **Behind the scenes** and open the `log_meal` row: the JSON, the `200`, and the server's time of a few milliseconds against the 500 ms target. Then a quick look at the README's tool table. | "Here's what's really happening. Daizee is a self-hosted MCP server: spec 2025-11-25, Streamable HTTP, seven tools. The assistant does the talking. My server keeps the memory and the safety rules, so they never depend on a prompt, and it answers in milliseconds." |
-| **B4** 2:15–2:32 | **Screen**, fast cuts. Kim's note shows "14 days left"; the check-in card; "My knee is better now" → "Should I forget…?" → "Yes."; the weight reply that doesn't say the number; then the test run passing. | "Every note has a lifespan: a trip two weeks, an allergy a year, and Daizee checks in before letting go. Forgetting always asks first, and your weight is never said out loud. Over three hundred tests check it." |
-| **B5** 2:32–2:46 | **You on camera.** | "Honestly, Alexa+ is simulated here; real access is limited to partners. But the server is real and ready. Each user signs in with their own DayZer0 account, and the tools are waiting for Alexa+." |
-| **B6** 2:46–2:54 | **You on camera**, then the end card: "Daizee · Just talk. It remembers your life.", "Built for Alexa+ · real MCP server · simulated assistant · dramatized scenes", the GitHub URL and https://daizee-mcp-demo.web.app | "Staying healthy shouldn't be a second job. Just talk. Daizee remembers." |
+| # | Time | On screen | You say (word-for-word) | Daizee (real audio) |
+|---|---|---|---|---|
+| **B1** | 1:40–1:50 | **You on camera.** | "I'm Fazil. I built DayZer0, a live health-coach app. For this hackathon, I made its coach, Daizee, something you can just talk to." | none |
+| **B2** | 1:50–2:10 | `take-memory`: typing "I'm allergic to peanuts." → the note saved · **New conversation** (the divider) · "Log pad thai for dinner." → the red peanut banner | (over the typing) "A simulated assistant stands in for Alexa+. I tell it about my allergy once." · (over New conversation) "New conversation: it knows nothing." · (after the warning) "But Daizee still remembers." | "Got it, I'll remember that for about a year." · "Logged your dinner, about 600 calories. Heads up: pad thai may contain peanuts." |
+| **B3** | 2:10–2:23 | `take-memory` from 35.9 s: Behind the scenes, the `log_meal` JSON, the `200`, a few ms against the 500 ms target. On-screen: "MCP 2025-11-25 · Streamable HTTP · 7 tools", then the seven tool names. | "Daizee is a self-hosted MCP server: seven tools, over Streamable HTTP. The assistant just talks. The memory and the safety rules live in the server, answering in milliseconds." | none |
+| **B4** | 2:23–2:38 | Fast cuts: `take-lifespan` (the knee check-in; "My knee is better now." → "Should I forget…?" → "Yes." → "Done.") · `take-travel` (14 days, then the Dubai plan) | "Every note has a lifespan. Daizee checks in before letting go, forgets only when you say yes, and fits your plan to your life." | "Should I forget 'left knee is sore'?" · "Since you are traveling to Dubai, remember to drink a glass of water with each meal…" |
+| **B5** | 2:38–2:50 | **You on camera.** | "Alexa+ is simulated here, since access is limited to partners. But the server is real, each user signs in with their DayZer0 account, and it's ready for Alexa+." | none |
+| **B6** | 2:50–2:57 | **You on camera**, then the end card: "Daizee · Just talk. It remembers your life.", the GitHub URL and https://daizee-mcp-demo.web.app | "Staying healthy shouldn't be a second job. Just talk. Daizee remembers." | none |
 
-**How each part covers what judges score:**
-- **Tech Implementation:** B2 and B3 (the MCP server live, its messages and speed) and B4's tests.
-- **Design:** B2 and B4 (voice-first, memory across conversations, check-ins, privacy).
-- **Potential Impact:** B1 (a live app) and B2 (it lands in the real app).
-- **Quality of the Idea:** Part A, and B3's "the server keeps the memory and the rules".
+Also recorded but not in the cut (time): the weigh-in that never says the number (`take-lifespan` 55.8 s) and the misheard "585 x for breakfast" understood as eggs (`take-misheard`). Swap one in for B4's travel cut if you prefer it.
+
+**How Part B covers what judges score:**
+- **Tech Implementation:** B2 and B3 (the self-hosted MCP server working, its real messages and speed).
+- **Design:** B2 and B4 (voice-first, memory across conversations, check-ins, two-step forget, a plan that fits your life).
+- **Potential Impact:** B1 (a live app) and B5 (each user signs in with their own account).
+- **Quality of the Idea:** Part A, and B3's "the memory and the safety rules live in the server".
 - **Honesty about what's simulated:** B2 and B5.
 - **Pre-existing work:** B1, with the details in the Devpost text.
 
