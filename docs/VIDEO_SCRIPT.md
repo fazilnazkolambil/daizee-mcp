@@ -65,24 +65,26 @@ Rendered in reel-studio (`content/daizee-demo/reel.ts` → `out/daizee-demo/vide
 
 **The product was recorded first, so the words fit what Daizee really said.** Four takes from the real demo (fictional data, live Gemini brain, typed lines because headless Chrome has no microphone) are in reel-studio `content/daizee-demo/screen/`: `take-memory`, `take-lifespan`, `take-travel`, `take-misheard`, each with an `.events.json` of every moment and Daizee's reply audio.
 
+**Say it your own way.** These lines are a guide, not a teleprompter test: if a sentence comes out differently but means the same, keep it. The edit follows what you actually say (the subtitles come from your recording).
+
 **What you record:** only your voice for the screen parts (B2–B4, a voice-over, any quiet room, phone or USB mic), and three short lines to camera (B1, B5, B6). About 150 words at an easy pace (no section faster than 2.4 words a second, counting Daizee's audio). Daizee's own voice plays in the gaps.
 
 | # | Time | On screen | You say (word-for-word) | Daizee (real audio) |
 |---|---|---|---|---|
-| **B1** | 1:40–1:50 | **You on camera.** | "I'm Fazil. I built DayZer0, a live health-coach app. For this hackathon, I made its coach, Daizee, something you can just talk to." | none |
-| **B2** | 1:50–2:10 | `take-memory`: typing "I'm allergic to peanuts." → the note saved · **New conversation** (the divider) · "Log pad thai for dinner." → the red peanut banner | (over the typing) "A simulated assistant stands in for Alexa+. I tell it about my allergy once." · (over New conversation) "New conversation: it knows nothing." · (after the warning) "But Daizee still remembers." | "Got it, I'll remember that for about a year." · "Logged your dinner, about 600 calories. Heads up: pad thai may contain peanuts." |
-| **B3** | 2:10–2:23 | `take-memory` from 35.9 s: Behind the scenes, the `log_meal` JSON, the `200`, a few ms against the 500 ms target. On-screen: "MCP 2025-11-25 · Streamable HTTP · 7 tools", then the seven tool names. | "Daizee is a self-hosted MCP server: seven tools, over Streamable HTTP. The assistant just talks. The memory and the safety rules live in the server, answering in milliseconds." | none |
-| **B4** | 2:23–2:38 | Fast cuts: `take-lifespan` (the knee check-in; "My knee is better now." → "Should I forget…?" → "Yes." → "Done.") · `take-travel` (14 days, then the Dubai plan) | "Every note has a lifespan. Daizee checks in before letting go, forgets only when you say yes, and fits your plan to your life." | "Should I forget 'left knee is sore'?" · "Since you are traveling to Dubai, remember to drink a glass of water with each meal…" |
-| **B5** | 2:38–2:50 | **You on camera.** | "Alexa+ is simulated here, since access is limited to partners. But the server is real, each user signs in with their DayZer0 account, and it's ready for Alexa+." | none |
-| **B6** | 2:50–2:57 | **You on camera**, then the end card: "Daizee · Just talk. It remembers your life.", the GitHub URL and https://daizee-mcp-demo.web.app | "Staying healthy shouldn't be a second job. Just talk. Daizee remembers." | none |
+| **B1** | 1:40–1:52 | **You on camera.** | "Hi, I'm Fazil. I built DayZer0, a health coach app, and the coach inside it is called Daizee. For this hackathon, I wanted you to be able to just talk to her." | none |
+| **B2** | 1:52–2:11 | `take-memory`: typing "I'm allergic to peanuts." → the note saved · **New conversation** (the divider) · "Log pad thai for dinner." → the red peanut banner | (over the typing) "This assistant is a stand-in for Alexa+. I'll tell it I'm allergic to peanuts." · (over New conversation) "Now I start a fresh conversation, so the assistant forgets everything." · (after the warning) "But Daizee didn't." | "Got it, I'll remember that for about a year." · "Logged your dinner, about 600 calories. Heads up: pad thai may contain peanuts." |
+| **B3** | 2:11–2:24 | `take-memory` from 35.9 s: Behind the scenes, the `log_meal` JSON, the `200`, a few ms against the 500 ms target. On-screen: "MCP 2025-11-25 · Streamable HTTP · 7 tools", then the seven tool names. | "So how does that work? Daizee is an MCP server I host myself. The assistant does the talking, but the memory and the safety checks live on my server." | none |
+| **B4** | 2:24–2:38 | Fast cuts: `take-lifespan` (the knee check-in; "My knee is better now." → "Should I forget…?" → "Yes." → "Done.") · `take-travel` (14 days, then the Dubai plan) | "And it's not a list that grows forever. Notes expire, Daizee asks before forgetting anything, and your plan follows what's going on in your life." | "Should I forget 'left knee is sore'?" · "Since you are traveling to Dubai, remember to drink a glass of water with each meal…" |
+| **B5** | 2:38–2:50 | **You on camera.** | "To be clear, the Alexa+ part is simulated here, because access is still limited to partners. But the server is real, and it's ready for Alexa+." | none |
+| **B6** | 2:50–2:57 | **You on camera**, then the end card: "Daizee · Just talk. It remembers your life.", the GitHub URL and https://daizee-mcp-demo.web.app | "Staying healthy shouldn't feel like a second job. You should just be able to talk." | none |
 
 Also recorded but not in the cut (time): the weigh-in that never says the number (`take-lifespan` 55.8 s) and the misheard "585 x for breakfast" understood as eggs (`take-misheard`). Swap one in for B4's travel cut if you prefer it.
 
 **How Part B covers what judges score:**
 - **Tech Implementation:** B2 and B3 (the self-hosted MCP server working, its real messages and speed).
 - **Design:** B2 and B4 (voice-first, memory across conversations, check-ins, two-step forget, a plan that fits your life).
-- **Potential Impact:** B1 (a live app) and B5 (each user signs in with their own account).
-- **Quality of the Idea:** Part A, and B3's "the memory and the safety rules live in the server".
+- **Potential Impact:** B1 (a live app) and B5 (ready for Alexa+). Account linking (each user signs in with their DayZer0 account) goes in the Devpost text.
+- **Quality of the Idea:** Part A, and B3's "the assistant does the talking, but the memory and the safety checks live on my server".
 - **Honesty about what's simulated:** B2 and B5.
 - **Pre-existing work:** B1, with the details in the Devpost text.
 
