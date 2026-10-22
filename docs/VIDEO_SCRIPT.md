@@ -1,6 +1,10 @@
 # Demo video script: Daizee, built for Alexa+
 
-**Target 2:52, hard limit 3:00** (judges may stop at 3:00). Public on YouTube, in English.
+**Target 2:54, hard limit 3:00** (judges may stop at 3:00). Public on YouTube, in English.
+
+**Two parts:** **A**, the three AI stories (0:00–1:05), as the hook and the vision; then **B**, Fazil on camera and on screen (1:05–2:54), showing how it works today and how it will work with Alexa+.
+
+**What we submit:** the `daizee-mcp` repo and its hosted demo (`daizee-mcp-demo`, fictional data). The DayZer0 app (`dayzer0-prod`) is the live product it connects to, shown as proof.
 
 **The story in one line:** staying healthy has become a second job. With Daizee you just talk, and it remembers your life.
 
@@ -37,17 +41,15 @@ Paste each description word for word into every prompt for that person, so they 
 | **Daizee moment** | "What should I eat today?" every day, with a fresh answer each time | "Going to Dubai for two weeks" means the plan adapts for 14 days, then it lets go | "I ate pad thai" triggers a warning from the peanut allergy she mentioned once |
 | **Accent** | British English | Korean-accented English | American English |
 
-**How the interleaving stays clear:**
-1. **Order:** Maya → Kim → Natasha in every round, never anything else.
+**How the stories stay clear:**
+1. **One story at a time:** each person's story runs whole (Maya, then Kim, then Natasha).
 2. **Their own world:** each person has their own country, colour palette and light, so they're recognizable in one frame.
-3. **Corner tag:** every scene has the same top-left tag, with name, city and local time (for example "Maya · London · Mon 7:05").
+3. **Corner tag:** every scene has the same top-left tag, with name, city and local time (for example "Maya · London · Mon 7:05"). It also covers the text the AI burned into H3, M2 and K2.
 4. **Lower-third:** on their first appearance only, showing name, age and one fact.
-5. **Round cards:** each round opens with a 1-second word on black ("Monday", "Wednesday", "Day 13").
-6. **Real proof:** every scene ends on a 2 to 3 s **real insert** (the phone app or the demo page) showing what that sentence did.
 
 ## 3. Voices
 
-- **Narrator:** calm and unhurried, either your own voice or a second Google Chirp 3 HD voice (for example `en-IN-Chirp3-HD-Charon`), so it never sounds like Daizee.
+- **No narrator in Part A:** on-screen text carries it. **Part B is you**, in your own voice.
 - **Daizee:** one voice for all three people, the same assistant everywhere: the product's real voice speaking its real replies.
 - **Characters:** one consistent voice per person, from the video tool's own audio or a separate AI voice.
 
@@ -55,63 +57,39 @@ Paste each description word for word into every prompt for that person, so they 
 
 ## 4. Timeline
 
-### Part 1 · The hook: "a second job" (0:00–0:29)
+### Part A · The stories (0:00–1:05): AI clips, no presenter
 
-| Time | Shot (AI unless marked REAL) | On-screen text | Audio |
-|---|---|---|---|
-| 0:00–0:06 | **H1 · Maya · London · 7:02.** The kitchen at full chaos: kids at the table, lunch boxes, the fridge door open, and Maya frozen in its light. | corner tag | **Maya** (to herself): "What do I even eat today?" |
-| 0:06–0:12 | **H2 · Kim · Seoul · 22:40.** Folding clothes into a suitcase with precision. His phone lights up with a generic, unbranded streak warning. | Phone: "Don't break your 143-day streak." | room tone, one notification chime |
-| 0:12–0:20 | **H3 · Natasha · Atlanta · 19:15.** She photographs her plate, sighs, then scrolls. **REAL** composited on her phone: the DayZer0 manual food search, sped up. | "pad thai: 37 results" | **Narrator:** "Staying healthy became a second job. Plan every meal. Log every bite." |
-| 0:20–0:25 | **H4 · Triptych:** all three side by side, tired, each lit by a phone. | none | **Narrator:** "And start over every time life gets in the way." |
-| 0:25–0:29 | Black. One piano note. | "What if you could just talk?" → **DAIZEE** · "Just talk. It remembers your life." | piano note, then music begins |
+Cinematic and quiet: subtitles, music, and Daizee's **real** voice and replies (recorded from the demo). Corner tags on every scene, plus "Dramatization · AI-generated" in the bottom-left.
 
-### Part 2 · The real life (0:29–1:45): three stories, interleaved
-
-**Round 1 · "Monday": just say it (0:29–0:56)**
-
-| Time | Scene | Dialogue | REAL insert (2–3 s) |
-|---|---|---|---|
-| 0:29–0:30 | Black: **"Monday"** | none | none |
-| 0:30–0:39 | **M1 · Maya · London · Mon 7:05.** One child on her hip and the phone on the counter, Daizee's light pulsing. She asks without stopping. Lower-third: "Maya Collins · 34 · London". | **Maya:** "Daizee, what should I eat today?" **Daizee:** *(real reply)* | The demo: the `recall_what_you_know` pill and the answer. The phone: today's plan. |
-| 0:39–0:48 | **K1 · Kim · Seoul · Mon 18:40.** Dusk light. He zips the suitcase and talks to the phone on the bed. Lower-third: "Kim Jae-won · 30 · Seoul". | **Kim:** "Daizee, I'm going to Dubai for two weeks. Adjust my plans accordingly." **Daizee:** "Got it, I'll remember that for 14 more days." | The demo: the memory card "going to Dubai for two weeks · 14 days left". |
-| 0:48–0:56 | **N1 · Natasha · Atlanta · Mon 12:30.** Lunch at her desk. She just talks: no camera, no search. Lower-third: "Natasha Brooks · 27 · Atlanta". | **Natasha:** "I had a quinoa bowl with chicken for lunch." **Daizee:** *(real reply)* | The phone: the meal appears and the calories update. Text: **"No searching. No photos."** |
-
-**Round 2 · "Wednesday": it remembers your life (0:56–1:28)**
-
-| Time | Scene | Dialogue | REAL insert |
-|---|---|---|---|
-| 0:56–0:57 | Black: **"Wednesday"** | none | none |
-| 0:57–1:06 | **M2 · Maya · London · Wed 6:50.** A calmer morning. She finishes ten minutes on the yoga mat, then asks again. | **Maya:** "What should I eat today?" **Daizee:** *(real reply, different from Monday's)* | The demo: the answer. Text: **"Same question. A fresh answer, every day."** |
-| 1:06–1:16 | **K2 · Kim · Dubai · Wed 6:10.** A hotel balcony at sunrise, heat haze, running shoes on. | **Kim:** "What should I focus on today?" **Daizee:** *(real reply: today's plan, shaped by the trip)* | The phone: the plan on the DayZer0 dashboard. **Narrator** (over the insert): "Daizee adapts Kim's plan to his two weeks in Dubai." |
-| 1:16–1:28 | **N2 · Natasha · Atlanta · Wed 20:10.** A takeout box on the counter; she opens it. Daizee's light turns amber. | **Natasha:** "I ate pad thai." **Daizee:** "Logged your dinner, about 600 calories. Heads up: pad thai may contain peanuts. Your note says allergic to peanuts. This is only a reminder, so please check." | The demo: the red peanut banner, with **New conversation** visible. Text: **"She told it once. It never forgot."** |
-
-**Round 3 · "Day 13": it lets go when life moves on (1:28–1:45)**
-
-| Time | Scene | Dialogue | REAL insert |
-|---|---|---|---|
-| 1:28–1:29 | Black: **"Day 13"** | none | none |
-| 1:29–1:33 | **M3 · Maya · London · 18:30.** Yoga on the living-room floor, her kids copying her poses, laughing. | none (music) | none |
-| 1:33–1:41 | **K3 · Kim · Dubai · 21:00.** At the airport, bag over his shoulder. He raises his wrist and checks his smartwatch (about 3.4 to 4.2 s in the clip), and that's when he says his line. | **Kim:** "How am I doing today?" **Daizee:** "…Your note 'going to Dubai for two weeks' ends in 2 days. Is it still true?" | The demo (**labelled "demo data"**): the check-in card. Text: **"It adapts. Then it lets go."** |
-| 1:41–1:45 | **N3 · Natasha · Atlanta · 19:40.** Cooking a peanut-free dinner with a friend, relaxed. | none (music) | none |
-
-### Part 3 · How it works (1:45–2:35): real screen recordings only
-
-| Time | Shot (REAL) | Narrator (word-for-word) |
+| Time | Clips | Words (subtitles / on-screen) |
 |---|---|---|
-| 1:45–1:59 | An animated diagram on black, lighting one node at a time: **You** (voice) → **Voice assistant** (Alexa+, simulated here) → **MCP tools** → **Daizee server** (memory · safety rules) → **DayZer0 app**. | "Under the hood, Daizee is a self-hosted MCP server, the open standard Alexa+ uses to reach outside services. Here, a simulated assistant stands in for Alexa+." |
-| 1:59–2:17 | The demo page in its three columns. Tap the mic and the live words appear. Press **New conversation**, then "I ate pad thai" brings up the banner. Zoom into **Behind the scenes** and open the `log_meal` row: the JSON, the `200`, and a server time of a few milliseconds against the 500 ms target. | "The assistant does the talking. The server keeps the memory and the safety rules, so they survive a brand-new conversation and never depend on a prompt. Answers take milliseconds." |
-| 2:17–2:35 | Fast montage: `tools/list` (seven tools), a title "spec 2025-11-25 · Streamable HTTP", the test run passing, the GitHub README, the phone updating from a spoken sentence. | "Seven tools, the 2025-11-25 spec, Streamable HTTP, over 300 tests, and connected to a live app people already use." |
+| 0:00–0:18 | H1 (Maya at the fridge) → H2 (Kim packing; streak warning) → H3 (Natasha photographing her plate, then the **real** manual food-search recording) → H4 triptych | Maya: "What do I even eat today?" · Text: **"Staying healthy became a second job."** |
+| 0:18–0:22 | Black | **"What if you could just talk?"** → **DAIZEE** · "Just talk. It remembers your life." |
+| 0:22–0:34 | **Maya:** M1 (0–3.9 s) → M2 → M3 | Maya: "Daizee, what should I eat today?" → Daizee *(real reply, one sentence)* · Text: "Same question. A fresh answer, every day." |
+| 0:34–0:46 | **Kim:** K1 → K2 → K3 (0–4.4 s) | Kim: "Daizee, I'm going to Dubai for two weeks. Adjust my plans accordingly." → Daizee: "Got it, I'll remember that for 14 more days." · Text: "It adapts. Then it lets go." |
+| 0:46–0:58 | **Natasha:** N1 → N2 → N3 | Natasha: "I ate pad thai." → Daizee: "Heads up: pad thai may contain peanuts. Your note says allergic to peanuts." · Text: "She told it once. It never forgot." |
+| 0:58–1:05 | E1 → E2 → E3 (0–3.9 s), then black | **"Just talk. It remembers your life."** |
 
-### Part 4 · The ending (2:35–2:52)
+### Part B · Fazil explains (1:05–2:54)
 
-| Time | Shot | Text / audio |
+Shoot it as **you on camera** for the human moments, and your **screen** (with your face small in a corner) for the demo. Speak to the camera like you're explaining to a friend, at your normal pace. It's about 205 words in about 109 s, at most 2.4 words a second in any section, unhurried, with the demo running underneath.
+
+| Time | Show | Say (word-for-word; contractions and pauses are fine) |
 |---|---|---|
-| 2:35–2:45 | **E1 to E3**, 2 s each, in story order: Maya laughing mid-yoga with her kids; Kim running the Dubai seafront at dawn; Natasha clinking glasses over dinner. Then a triptych of all three. The music swells. | **Narrator:** "This is where health coaching is going. No second job. Just talk, and your coach remembers your life." |
-| 2:45–2:52 | Black. Daizee's light breathes once, then the wordmark appears. | **"Daizee"** · "Just talk. It remembers your life." · small text: "Built for Alexa+ · real MCP server · simulated assistant · dramatized scenes" · the GitHub URL · https://daizee-mcp-demo.web.app |
+| **B1** 1:05–1:20 | **You on camera**, seated, warm light, the phone with DayZer0 in your hand. | "Hi, I'm Fazil. I built DayZer0, a health-coach app that's live on Android, and its coach is Daizee. What you just saw is where Daizee is going. For this hackathon, I built that part for real." |
+| **B2** 1:20–1:50 | **Screen.** The demo page, with the phone (scrcpy) beside it. Tap the mic and say *"I'm allergic to peanuts."* The live words appear, the `remember_about_user` pill shows, and Daizee speaks. Press **New conversation**, then say *"Log pad thai for dinner."* The red peanut banner shows. **Cut to the phone:** the meal lands in DayZer0. | "This is a simulated voice assistant, standing in for Alexa+. I tell it about my allergy once. Now watch: I start a brand-new conversation, so the assistant remembers nothing. And Daizee still catches it. The meal even lands in my real app." |
+| **B3** 1:50–2:15 | **Screen.** Zoom into **Behind the scenes** and open the `log_meal` row: the JSON, the `200`, and the server's time of a few milliseconds against the 500 ms target. Then a quick look at the README's tool table. | "Here's what's really happening. Daizee is a self-hosted MCP server: spec 2025-11-25, Streamable HTTP, seven tools. The assistant does the talking. My server keeps the memory and the safety rules, so they never depend on a prompt, and it answers in milliseconds." |
+| **B4** 2:15–2:32 | **Screen**, fast cuts. Kim's note shows "14 days left"; the check-in card; "My knee is better now" → "Should I forget…?" → "Yes."; the weight reply that doesn't say the number; then the test run passing. | "Every note has a lifespan: a trip two weeks, an allergy a year, and Daizee checks in before letting go. Forgetting always asks first, and your weight is never said out loud. Over three hundred tests check it." |
+| **B5** 2:32–2:46 | **You on camera.** | "Honestly, Alexa+ is simulated here; real access is limited to partners. But the server is real and ready. Each user signs in with their own DayZer0 account, and the tools are waiting for Alexa+." |
+| **B6** 2:46–2:54 | **You on camera**, then the end card: "Daizee · Just talk. It remembers your life.", "Built for Alexa+ · real MCP server · simulated assistant · dramatized scenes", the GitHub URL and https://daizee-mcp-demo.web.app | "Staying healthy shouldn't be a second job. Just talk. Daizee remembers." |
 
-The narration totals about 150 words, about 60 s, which leaves room for the dialogue and the replies.
-
----
+**How each part covers what judges score:**
+- **Tech Implementation:** B2 and B3 (the MCP server live, its messages and speed) and B4's tests.
+- **Design:** B2 and B4 (voice-first, memory across conversations, check-ins, privacy).
+- **Potential Impact:** B1 (a live app) and B2 (it lands in the real app).
+- **Quality of the Idea:** Part A, and B3's "the server keeps the memory and the rules".
+- **Honesty about what's simulated:** B2 and B5.
+- **Pre-existing work:** B1, with the details in the Devpost text.
 
 ## 5. AI shot prompts (5 to 8 s each; make 2 to 3 takes per shot and keep the most natural)
 
@@ -147,59 +125,41 @@ Check that your video tool's terms allow commercial use. Composite the real UI o
 
 ## 6. What to record for real
 
-**Three fictional demo accounts in the real DayZer0 app** keep each story's data separate. Create them on the phone (Maya, Kim, Natasha), finish onboarding for each, and copy their uids from the Firebase console for **dayzer0-prod**, under Authentication.
+**For Part A:** Daizee's real replies to the three story lines, recorded through the demo, plus the manual food-search recording in DayZer0 for H3.
 
-**The local server** runs on your Mac, writing to the real app for those three accounts only. Put these lines in `.env`, next to the existing `DAIZEE_SECRETS_PROJECT` and `DAIZEE_TTS` lines:
+**For Part B (you):**
+1. **Setup:**
+   - **OBS** with two scenes: "Camera" (you, full frame) and "Screen" (the demo page and the phone, with your camera small in the corner).
+   - A USB or lapel mic, or your earphones' mic, not the laptop mic. Headphones on, so the mic doesn't pick up Daizee.
+   - Light in front of you, not behind.
+   - Chrome at about 125% zoom, in a window at least 1280 px wide.
+   - Live mode, Voice input: Browser, Speak replies on, Conversation mode on.
+   - "Assistant calls only" switched on in Behind the scenes.
+2. **The local server, connected to the real app** for the phone shot. Run `npm run demo` with these lines in `.env`, next to the existing `DAIZEE_SECRETS_PROJECT` and `DAIZEE_TTS` lines:
 
 ```
 STORE=firestore
 FIREBASE_PROJECT_ID=dayzer0-prod
-DAIZEE_ALLOWED_UIDS=maya=<uid1>,kim=<uid2>,natasha=<uid3>
+DAIZEE_ALLOWED_UIDS=demo=<uid of a fictional demo account>
 DAIZEE_ALLOW_LIVE_FIRESTORE=1
 DEMO_MODE=1
 ```
 
-Run `npm run demo` and record from `http://localhost:8787`. The startup line must say `project dayzer0-prod (LIVE DATA)`. Pick each person under Settings → Demo user, and sign the phone in to the same account for their inserts. Remove these lines from `.env` after filming. Your Google login is already Owner on `dayzer0-prod`.
+   Record from `http://localhost:8787`. The startup line must say `project dayzer0-prod (LIVE DATA)`. Remove these lines after filming.
 
-**Recording setup:**
-- Chrome at about 125% zoom, in a window at least 1280 px wide.
-- The phone mirrored with `scrcpy`.
-- Headphones and a quiet room.
-- Live mode, Fast replies, Voice input: Browser, Speak replies on, Conversation mode on.
-- "Assistant calls only" switched on in Behind the scenes.
-
-**Dry run first:**
-- A typed meal appears on the phone.
-- A note shows on the Memories page.
-- "What should I focus on today?" returns that day's plan.
-- All three users work.
-- The server time stays far under 500 ms.
-
-**Shot list, in recording order:**
-1. **Before day 1:** as Natasha, say "I'm allergic to peanuts", so on camera it's an old note.
-2. **Day 1 (today):**
-   - Maya: "What should I eat today?"
-   - Kim: "I'm going to Dubai for two weeks. Adjust my plans accordingly." The reply should say "14 more days".
-   - Natasha: "I had a quinoa bowl with chicken for lunch." Phone: the meal appears.
-3. **Day 2 (tomorrow morning, after DayZer0's overnight plan runs):**
-   - Maya: the same question, for a new answer.
-   - Kim: "What should I focus on today?" Check that the plan reflects Dubai. The overnight plan reads active memories, so it should. If it doesn't, record "I'm in Dubai this week. What should I focus on today?" instead.
-   - Natasha: press **New conversation**, then "I ate pad thai." The banner should appear.
-4. **Run B** (the default in-memory demo data, **labelled as demo data** in the edit), for Kim's Day 13:
-   - Say "I'm going to Dubai for two weeks."
-   - Press **+6**, then **+6** again, so 2 days are left.
-   - Ask "How am I doing today?" to get the check-in.
-5. **The walkthrough:**
-   - Behind the scenes, opening the `log_meal` row.
-   - `tools/list`.
-   - `npm test` passing in the terminal.
-   - Scrolling the GitHub README.
-6. **The problem shot:** the DayZer0 manual food search, done by hand, sped up.
-7. **Daizee's audio:** every reply above, captured with Speak replies on or generated with `/brain/speak` from the exact reply text.
-
-**If something misheard you:** keep the take if Daizee recovers by asking. That shows the safety guard working.
-
----
+3. **Order:**
+   - **B2 and B3** first, in one take on the real demo account.
+   - **B4** on the default in-memory demo data:
+     - Kim: "I'm going to Dubai for two weeks", which shows 14 days.
+     - **+6**, then **+6** again, then "How am I doing today?", for the check-in.
+     - "My knee is better now" → "Yes."
+     - "I weigh 61.5 kilos today."
+     - `npm test` passing in the terminal.
+   - Then the **camera lines** (B1, B5, B6): 2 to 3 takes each, looking into the lens.
+4. **Tips:**
+   - You don't need to memorize the lines. Put them right under the lens as a teleprompter, and read one sentence at a time.
+   - Smile at B1 and B6, slow down at B5, and pause after "Now watch".
+   - If something mishears you on screen and Daizee recovers by asking, keep the take. It shows the safety guard working.
 
 ## 7. Edit decisions for the AI clips (reviewed Oct 21)
 
@@ -231,15 +191,14 @@ All 18 clips are in: 6.0 s each, 1280×720, 24 fps, with generated audio. The ch
 ## 8. Schedule (deadline Friday 12:00 PT)
 
 - **Today:**
-  - Create the accounts and do the dry run.
-  - Record day 1.
-  - Generate the H and round 1 shots.
-- **Tomorrow morning:**
-  - Record day 2 and Run B.
-  - Generate the round 2, round 3 and ending shots.
-- **Tomorrow afternoon:**
-  - Edit: subtitles, music, voice tracks and the colour grade.
-  - Export at 1080p.
+  - Send me the demo account's uid, and we do a dry run of the local server against the real app.
+  - Record Daizee's replies for Part A, then record Part B.
+- **Then I edit in reel-studio:**
+  - Part A from the 18 clips (trims, corner tags, subtitles, Daizee's real replies).
+  - Part B from your recordings (zooms on Behind the scenes, subtitles).
+  - Your licensed music, ducked under your voice; loudness mastered; the end card.
+  - Render at 1080p and check every frame and the length.
+- **Last:**
+  - Watch it through once.
   - Upload to YouTube as **Public**, with English captions corrected for "Daizee", "DayZer0", "MCP" and "quinoa".
   - Paste the link into Devpost.
-- **If the AI shots run late:** replace a character scene with a 6 s AI still, plus its real insert and the real Daizee reply. The structure stays the same.
