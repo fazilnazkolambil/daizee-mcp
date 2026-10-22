@@ -65,6 +65,8 @@ Rendered in reel-studio (`content/daizee-demo/reel.ts` → `out/daizee-demo/vide
 
 **Built from the recordings.** The product was recorded first: four takes from the real demo (fictional data, the live Gemini brain, the real cloud voice; lines typed because headless Chrome has no microphone), in reel-studio `content/daizee-demo/screen/` with an `.events.json` for every moment and Daizee's reply audio. Every line below is placed on what is visible at that second, and Daizee's real replies play between your lines. Waiting time for the model is cut out.
 
+**Timing check:** each of your sentences fits the clip under it at an easy 2.6 words a second or slower (B2 about 19 s, B3 11 s, B4 20 s).
+
 **What you record:** your voice for B2–B4 (a voice-over: any quiet room, phone or USB mic) and three short lines to camera (B1, B5, B6). Say it your own way: if a sentence comes out differently but means the same, keep it. The subtitles follow your recording.
 
 #### B1 · to camera (1:40–1:50)
@@ -74,9 +76,9 @@ Rendered in reel-studio (`content/daizee-demo/reel.ts` → `out/daizee-demo/vide
 
 | Clip (take seconds) | On screen | Sound |
 |---|---|---|
-| 1.5 → 4.9 | The empty assistant; "I'm allergic to peanuts." is typed and sent | **You:** "This assistant is a stand-in for Alexa+. I'll tell it I'm allergic to peanuts." |
+| 0.0 → 5.6 | The empty assistant, then "I'm allergic to peanuts." is typed and sent (about 3.8–4.9) | **You:** "This assistant is a stand-in for Alexa+. I'll tell it I'm allergic to peanuts." |
 | 11.6 → 14.4 | Daizee's reply appears; the allergy lands in "What Daizee remembers" | **Daizee:** "Got it, I'll remember that for about a year." (reply-1, 2.7 s) |
-| 16.3 → 19.6 | **New conversation** is pressed; the line "The assistant now remembers nothing" appears; "Log pad thai for dinner." is typed | **You:** "Now I start a fresh conversation, so the assistant forgets everything." |
+| 16.0 → 20.0 | **New conversation** is pressed; the line "The assistant now remembers nothing" appears; "Log pad thai for dinner." is typed | **You:** "Now I start a fresh conversation, so the assistant forgets everything." |
 | 23.3 → 28.3 | The red banner: "Heads up: pad thai may contain peanuts" | **Daizee:** "Logged your dinner, about 600 calories. Heads up: pad thai may contain peanuts." (reply-2, first 4.9 s) |
 | 28.3 → 29.8 | Hold on the banner | **You:** "But Daizee didn't." |
 
@@ -90,11 +92,11 @@ Rendered in reel-studio (`content/daizee-demo/reel.ts` → `out/daizee-demo/vide
 
 | Clip | On screen | Sound |
 |---|---|---|
-| 3.0 → 5.2 | "How am I doing today?" is typed and sent; the knee note shows "2 days left" | **You:** "Notes don't stay forever. When one is about to run out, Daizee checks in." |
+| 0.5 → 5.6 | Maya's notes, with the knee at "2 days left"; "How am I doing today?" is typed and sent | **You:** "Notes don't stay forever. When one is about to run out, Daizee checks in." |
 | 13.4 → 17.5 | Daizee's answer appears | **Daizee:** "Is your left knee still sore, or can I mark that as finished?" (reply-1, from 6.4 s) |
 | 25.8 → 27.5 | "My knee is better now." is typed and sent | none (music) |
 | 33.4 → 35.7 | Daizee's question appears | **Daizee:** "Should I forget 'left knee is sore'?" (reply-2) |
-| 36.8 → 37.9 | "Yes." is typed and sent | **You:** "It never forgets anything unless you say yes." |
+| 35.6 → 38.4 | Right after the question, "Yes." is typed and sent | **You:** "It never forgets anything unless you say yes." |
 | 49.1 → 53.0 | "Done." appears and the knee note leaves "What Daizee remembers" | **Daizee:** "Done. I've let go of 'left knee is sore'." (reply-3) |
 
 #### B5 · to camera (2:40–2:51)
