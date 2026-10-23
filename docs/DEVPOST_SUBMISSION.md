@@ -35,9 +35,9 @@ Still to do before submitting:
 
 ## 2. Elevator pitch (Devpost allows 200 characters)
 
-> I told my voice assistant I'm allergic to peanuts. Days later, in a brand-new conversation, it still warned me about pad thai. Daizee is the MCP server that makes that work.
+> Imagine one health coach inside every assistant you talk to: it remembers your life across conversations, plans your day around it, and knows when to forget. Daizee is that memory, built for Alexa+.
 
-(173 characters)
+(198 characters)
 
 ## 3. About the project
 
@@ -94,7 +94,7 @@ The other hard part was writing into a live app without being reckless. I built 
 
 Most of all, that a fresh conversation really does lose nothing. Giving Daizee an actual memory was the part of the app I was proudest of, and now that memory follows you to any assistant.
 
-Also: 1,442 automated tests pass, including ones that drive the server with the real MCP client over HTTP. An evaluation of 17 spoken phrases, including a prompt-injection attempt, picks the right tool every time, at about 2.4 seconds per spoken turn. And along the way I found and fixed a bug in the MCP TypeScript SDK itself.
+Also: 331 automated tests pass on a fresh clone, including ones that drive the server with the real MCP client over HTTP, plus 4 more that run against the Firebase emulator. An evaluation of 17 spoken phrases, including a prompt-injection attempt, picks the right tool every time, at about 2.4 seconds per spoken turn. And along the way I found and fixed a bug in the MCP TypeScript SDK itself.
 
 ## What I learned
 
@@ -364,6 +364,6 @@ Worth adding, as stills from the recordings:
   - The public demo's Gemini and text-to-speech calls have daily caps, so it can't run up a bill.
 - **Working:**
   - CI passes on a fresh clone of the pushed commit: `npm ci`, both type checks and the tests.
-  - Locally: 1,442 tests pass, 21 of 21 spoken replies pass the voice lint, and the server, demo page and Cloud Function all build.
+  - On a fresh clone: 331 tests pass (4 more need the Firebase emulator). An earlier count of 1,442 was wrong: it included copies of the tests in local `.claude/worktrees/` folders. 21 of 21 spoken replies pass the voice lint, and the server, demo page and Cloud Function all build.
   - The hosted MCP endpoint lists all seven tools. The allergy, then a separate request, then pad thai, returns the peanut warning word for word as in the video.
   - The demo was reset afterwards.
